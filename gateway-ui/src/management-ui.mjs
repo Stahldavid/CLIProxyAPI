@@ -81,6 +81,12 @@ export function mountAccountManagement(root, fetchImpl = globalThis.fetch) {
             confirm.onclick = async () => {
               confirm.disabled = true;
               cancel.disabled = true;
+              refresh.disabled = true;
+              const announce = (text) => {
+                const notice = document.querySelector("#notice");
+                if (notice) notice.textContent = text;
+              };
+              announce("Alteração de conta em andamento; aguarde o resultado.");
               try {
                 const result = await post("/api/account-status/confirm", {
                   confirmationToken: plan.confirmationToken,
@@ -90,10 +96,14 @@ export function mountAccountManagement(root, fetchImpl = globalThis.fetch) {
                   result.status === "applied"
                     ? "Alteração aplicada e verificada."
                     : "Resultado não comprovado. Consulte o estado; não repita automaticamente.";
+                announce(row.textContent);
               } catch {
                 row.replaceChildren();
                 row.textContent =
                   "Resultado não comprovado. Consulte o estado antes de decidir nova tentativa.";
+                announce(row.textContent);
+              } finally {
+                refresh.disabled = false;
               }
             };
             row.append(warning, confirm, cancel);

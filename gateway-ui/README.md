@@ -55,7 +55,7 @@ A Claude Code client using Codex is never counted as Anthropic billing just beca
 
 Implemented: eight views, responsive navigation, offline charts and statistics computed from records, exact attribution details, status/search filters, safe imports, local reset/clear, observed-route explanation, read-only live adapter, redacted partial failure handling and server isolation.
 
-The route simulator explains an observed route; it is not a routing engine, fallback verifier or configuration editor. Settings change only this console session. Security shows boundaries rather than pretending Infisical or Executor is installed. Local authentication and a guarded, one-batch collector are included. No remote production authentication, automatic collection scheduler, actual billing integration, quota fetching, route writing or provider inference verification is included. File-account status management exists only behind explicit opt-in and per-action confirmation. Those are not hidden behind fake functional buttons.
+The route simulator explains an observed route; it is not a routing engine or fallback verifier. The separate optional config editor described below is never enabled by the simulator. Settings change only this console session. Security shows boundaries rather than pretending Infisical or Executor is installed. Local authentication and a guarded, one-batch collector are included. No remote production authentication, automatic collection scheduler, actual billing integration, quota fetching or provider inference verification is included. File-account status management exists only behind explicit opt-in and per-action confirmation. Those are not hidden behind fake functional buttons.
 
 ## Validation
 
@@ -87,3 +87,18 @@ Only enabling/disabling a supported file credential is implemented. The supporte
 Each change requires selecting an opaque account label, preparing a preview, then pressing **Confirmar alteração**. Pending confirmations expire after 60 seconds, are single-use, and bind the account identity and prior disabled state. The server re-reads identity/status before PATCH and after PATCH. Only a verified postcondition is called applied; ambiguous responses are reported uncertain, with no automatic retry. A process restart invalidates pending confirmations and account handles. No credential filename, ID, token or source is sent to the browser. Account labels are anonymized, so operators must establish which account is intended before enabling this feature; this UI is not an identity directory.
 
 The upstream status API does not offer a compare-and-set transaction against previous state. The recheck narrows but cannot eliminate races with other administrators. Avoid concurrent status editors. The operation changes routing eligibility, not subscription, billing or quota. Mock tests prove contract behavior; production behavior remains unqualified.
+
+## Optional routing configuration editor
+
+Default: **disabled**. An authorized operator may opt in with `GATEWAY_ALLOW_ROUTING=explicit-confirmation`, management origin/token and the separate console password. The Routes screen offers an explicit load action, editable value, before/after preview, cancellation and confirmation. No load or write is automatic. This capability was only exercised against mocked upstream responses.
+
+Supported exact subpaths:
+
+- `GET` / `PUT /v8/management/config/routing/strategy`: round-robin, weighted-round-robin or fill-first. Credential weights themselves are not edited.
+- `GET` / `PUT /v8/management/config/oauth/model-alias/{channel}`: existing lists for codex, claude, aistudio, vertex, antigravity, kimi, xai and meta. Up to 100 entries; name, alias, fork, display-name and force-mapping fields are preserved. Unknown fields (including openapi), malformed schemas, absent configuration and missing/weak ETags fail closed. There is no fallback to loading the full configuration or creating absent paths.
+
+The alias editor replaces the entire existing list for the selected channel, not a partial row. Client-visible aliases can conflict across providers; per-credential aliases can take precedence. These aliases do not configure upstream API-key groups. The preview shows the actual current subpath and intended replacement.
+
+Every write includes the strong SHA-256 ETag from the preview in `If-Match`. The upstream config handler checks it while holding its configuration mutex. Any intervening config change yields HTTP 412/conflict instead of overwriting. Confirmation is single-use, expires in 60 seconds, and successful readback is required before showing applied. No automatic retries, DELETE, wildcard paths or whole-config writes exist. An uncertain write must be reconciled before retry.
+
+Upstream may normalize/migrate YAML layout when saving any config change; this console does not claim byte-for-byte formatting preservation. This verifies saved configuration, not successful inference, model availability, billing behavior or deployment fitness.

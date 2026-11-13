@@ -32,3 +32,11 @@ Date: 2026-11-13. Execution: isolated assistant workspace only.
 - Upstream route and handler contract inspected in this checkout; no real management endpoint was called.
 - Only file-credential routing eligibility is editable. Runtime/config/plugin virtual credentials, OAuth, upload/delete, quota reset, billing and route configuration are excluded.
 - Upstream has no compare-and-set transaction; concurrent administrators remain an operational race risk. Production and visual browser validation remain pending.
+
+## Conditional routing editor follow-up (2026-11-13)
+
+- 58/58 local Node tests pass. New coverage includes strong/missing ETags, exact subpath payloads, conditional writes, 412 conflicts, expired/replayed confirmations, readback, alias optional fields, preview/cancel UI, in-flight outcome visibility and authenticated HTTP → adapter → simulated upstream integration.
+- Independent review found malformed URL targets could reject outside the handler; now return 400 with regression coverage. It also found in-flight route writes could lose visible outcomes when navigating; panel controls now lock and completion is posted to the persistent notice even if the panel was detached.
+- Local upstream Go `TestConfigV8ETagIfMatch` passed, confirming the inspected conditional-write contract. Full server build and Prettier passed. No upstream implementation changed.
+- Missing alias configuration, unsupported fields and absent strong ETags fail closed; no wholesale config reads or writes. The config handler can normalize YAML when saving.
+- No real endpoint was called, no deployment occurred, and browser visual QA is still pending.

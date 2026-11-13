@@ -1,4 +1,5 @@
 import http from "node:http";
+import { createRoutingManager } from "./routing.mjs";
 import { createStatusManager } from "./management.mjs";
 import { createConsoleAuth, isSameOriginRequest } from "./auth.mjs";
 import { readFile } from "node:fs/promises";
@@ -12,17 +13,21 @@ const files = new Set([
   "telemetry.mjs",
   "demo.mjs",
   "management-ui.mjs",
+  "routing-ui.mjs",
 ]);
 export function createServer({
   adapter = null,
   statusManager = null,
+  routingManager = null,
   snapshotPath = null,
   consolePassword = null,
   managementToken = null,
 } = {}) {
   const authorized = createConsoleAuth({
     password: consolePassword,
-    required: Boolean(adapter || snapshotPath || statusManager),
+    required: Boolean(
+      adapter || snapshotPath || statusManager || routingManager,
+    ),
     managementToken,
   });
   return http.createServer(async (req, res) => {
@@ -52,26 +57,45 @@ export function createServer({
       res.end("Authentication required");
       return;
     }
-    const actionPath = new URL(req.url, "http://localhost").pathname;
-    if (actionPath.startsWith("/api/account-status")) {
+    let requestURL;
+    try {
+      requestURL = new URL(req.url, "http://localhost");
+    } catch {
+      res.writeHead(400, headers);
+      res.end("Invalid request target");
+      return;
+    }
+    const actionPath = requestURL.pathname;
+    const routingAction = actionPath.startsWith("/api/routing");
+    const actionBase = routingAction ? "/api/routing" : "/api/account-status";
+    const actionManager = routingAction ? routingManager : statusManager;
+    if (routingAction || actionPath.startsWith("/api/account-status")) {
       const respond = (code, body) => {
         res.writeHead(code, { ...headers, "Content-Type": "application/json" });
         res.end(JSON.stringify(body));
       };
-      if (!statusManager) {
-        respond(404, { error: "Account management disabled" });
+      if (!actionManager) {
+        respond(404, { error: "Management capability disabled" });
         return;
       }
       try {
-        if (actionPath === "/api/account-status" && req.method === "GET") {
-          respond(200, await statusManager.list());
+        if (actionPath === actionBase && req.method === "GET") {
+          const params = requestURL.searchParams;
+          respond(
+            200,
+            routingAction
+              ? await actionManager.read({
+                  kind: params.get("kind"),
+                  channel: params.get("channel") ?? undefined,
+                })
+              : await actionManager.list(),
+          );
           return;
         }
         if (
-          ![
-            "/api/account-status/preview",
-            "/api/account-status/confirm",
-          ].includes(actionPath) ||
+          ![`${actionBase}/preview`, `${actionBase}/confirm`].includes(
+            actionPath,
+          ) ||
           req.method !== "POST"
         ) {
           respond(405, { error: "Unsupported action" });
@@ -88,15 +112,16 @@ export function createServer({
         const chunks = [];
         for await (const chunk of req) {
           size += chunk.length;
-          if (size > 2048) throw new Error("Too large");
+          if (size > (routingAction ? 65536 : 2048))
+            throw new Error("Too large");
           chunks.push(chunk);
         }
         const body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
         if (!body || typeof body !== "object" || Array.isArray(body))
           throw new Error("Invalid request");
         const result = actionPath.endsWith("/preview")
-          ? await statusManager.preview(body)
-          : await statusManager.execute(body);
+          ? await actionManager.preview(body)
+          : await actionManager.execute(body);
         respond(200, result);
       } catch {
         respond(409, {
@@ -111,7 +136,7 @@ export function createServer({
       res.end();
       return;
     }
-    const path = new URL(req.url, "http://localhost").pathname;
+    const path = requestURL.pathname;
     if (path === "/api/snapshot") {
       try {
         let records = [];
@@ -190,8 +215,17 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
           enabled: true,
         })
       : null;
+  const routingManager =
+    process.env.GATEWAY_ALLOW_ROUTING === "explicit-confirmation"
+      ? createRoutingManager({
+          baseURL: process.env.GATEWAY_MANAGEMENT_URL,
+          token: process.env.GATEWAY_MANAGEMENT_TOKEN,
+          enabled: true,
+        })
+      : null;
   createServer({
     adapter,
+    routingManager,
     statusManager,
     consolePassword: process.env.GATEWAY_CONSOLE_PASSWORD ?? null,
     managementToken: process.env.GATEWAY_MANAGEMENT_TOKEN ?? null,

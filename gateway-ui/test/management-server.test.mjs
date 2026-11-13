@@ -73,3 +73,34 @@ test("management routes require local auth, explicit JSON action, and bounded bo
     await new Promise((resolve) => server.close(resolve));
   }
 });
+
+test("malformed request targets return 400 without terminating server", async () => {
+  const { request } = await import("node:http");
+  const server = createServer();
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const port = server.address().port;
+  try {
+    const status = await new Promise((resolve, reject) => {
+      const req = request(
+        {
+          hostname: "127.0.0.1",
+          port,
+          path: "//[%",
+          headers: { Host: `127.0.0.1:${port}` },
+        },
+        (res) => {
+          res.resume();
+          resolve(res.statusCode);
+        },
+      );
+      req.on("error", reject);
+      req.end();
+    });
+    assert.equal(status, 400);
+    assert.equal((await fetch(`http://127.0.0.1:${port}/`)).status, 200);
+  } finally {
+    server.closeAllConnections();
+    await new Promise((resolve) => server.close(resolve));
+  }
+});

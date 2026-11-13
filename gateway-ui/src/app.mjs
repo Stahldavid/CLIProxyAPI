@@ -1,5 +1,6 @@
 import { normalizeRecords, summarize } from "./telemetry.mjs";
 import { demo } from "./demo.mjs";
+import { mountRouting } from "./routing-ui.mjs";
 import { mountAccountManagement } from "./management-ui.mjs";
 const pages = [
   ["overview", "⌂", "Visão geral", "Tráfego e atribuição em um só lugar."],
@@ -218,6 +219,7 @@ function render() {
     );
   $("#content").innerHTML = html;
   if (page[0] === "settings") mountAccountManagement($("#content"));
+  if (page[0] === "routes") mountRouting($("#content"));
   if (page[0] === "activity") {
     const update = () => {
       const list = records.filter(
