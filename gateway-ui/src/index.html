@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Gateway · Console</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <a class="skip" href="#main">Ir para conteúdo</a>
+    <aside>
+      <a href="#overview" class="brand"
+        ><span>◈</span> Gateway<small>MODEL API CONSOLE</small></a
+      >
+      <nav aria-label="Navegação principal"></nav>
+      <footer>
+        <span class="dot"></span> Ambiente isolado<br /><small
+          >Sem conexão com provedores</small
+        >
+      </footer>
+    </aside>
+    <main id="main">
+      <header>
+        <div>
+          <small class="eyebrow">WORKSPACE / LOCAL</small>
+          <h1></h1>
+          <p id="subtitle"></p>
+        </div>
+        <div class="toolbar">
+          <span id="mode" class="badge"></span
+          ><button id="import">Importar snapshot</button
+          ><input
+            id="file"
+            type="file"
+            accept="application/json,.json"
+            hidden
+          />
+        </div>
+      </header>
+      <div id="notice" role="status"></div>
+      <section id="content"></section>
+    </main>
+    <dialog id="detail">
+      <button id="close" aria-label="Fechar detalhes">×</button>
+      <h2>Detalhes da requisição</h2>
+      <div id="detail-body"></div>
+    </dialog>
+    <script type="module" src="/app.mjs"></script>
+  </body>
+</html>
