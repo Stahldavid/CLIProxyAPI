@@ -25,3 +25,10 @@ Date: 2026-11-13. Execution: isolated assistant workspace only.
 - Authentication protects the local loopback console. Remote HTTPS/SSO/multi-user deployment remains unqualified.
 - Quotas, actual billing, route mutation and credential management remain intentionally unsupported rather than simulated controls.
 - Browser visual QA remains pending; shared browser is reserved for the active call.
+
+## Explicit account-status control follow-up (2026-11-13)
+
+- 46/46 tests pass, including disabled-by-default controls, authenticated same-origin JSON requests, bounded action bodies, preview/cancel/confirm UI, single-use/expired confirmations, stale identities, changed prior state, virtual/memory exclusions, verified readback and uncertain outcomes without retry.
+- Upstream route and handler contract inspected in this checkout; no real management endpoint was called.
+- Only file-credential routing eligibility is editable. Runtime/config/plugin virtual credentials, OAuth, upload/delete, quota reset, billing and route configuration are excluded.
+- Upstream has no compare-and-set transaction; concurrent administrators remain an operational race risk. Production and visual browser validation remain pending.

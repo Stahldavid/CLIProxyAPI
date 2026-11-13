@@ -1,5 +1,6 @@
 import { normalizeRecords, summarize } from "./telemetry.mjs";
 import { demo } from "./demo.mjs";
+import { mountAccountManagement } from "./management-ui.mjs";
 const pages = [
   ["overview", "⌂", "Visão geral", "Tráfego e atribuição em um só lugar."],
   [
@@ -213,9 +214,10 @@ function render() {
   if (page[0] === "settings")
     html = panel(
       "Sessão local",
-      `<div class="settings-row split"><div><b>Adaptador administrativo</b><p>${esc(connection?.management?.status ?? "Não consultado")} · Telemetria: ${esc(connection?.telemetryStatus ?? "Não consultada")}</p><small>Última consulta: ${esc(connection?.checkedAt)}</small></div><button id="refresh">Atualizar fonte</button></div><div class="settings-row split"><div><b>Fonte atual</b><p>${esc(mode)} · ${records.length} registros</p></div><button id="reset">Restaurar demonstração</button></div><div class="settings-row split"><div><b>Limpar dados</b><p>Remove o conjunto da memória desta aba.</p></div><button id="clear">Limpar sessão</button></div><div class="settings-row"><b>Ambiente</b><p>Standalone · Adaptador v8 somente leitura · Sem API de inferência</p></div><div class="settings-row"><b>Produção permanece intocada</b><p>Nenhuma configuração do CLIProxyAPI é alterada. Conexão administrativa exige configuração explícita no servidor; nenhum token é solicitado pelo navegador.</p></div>`,
+      `<div class="settings-row split"><div><b>Adaptador administrativo</b><p>${esc(connection?.management?.status ?? "Não consultado")} · Telemetria: ${esc(connection?.telemetryStatus ?? "Não consultada")}</p><small>Última consulta: ${esc(connection?.checkedAt)}</small></div><button id="refresh">Atualizar fonte</button></div><div class="settings-row split"><div><b>Fonte atual</b><p>${esc(mode)} · ${records.length} registros</p></div><button id="reset">Restaurar demonstração</button></div><div class="settings-row split"><div><b>Limpar dados</b><p>Remove o conjunto da memória desta aba.</p></div><button id="clear">Limpar sessão</button></div><div class="settings-row"><b>Ambiente</b><p>Standalone · Adaptador v8 somente leitura · Sem API de inferência</p></div><div class="settings-row"><b>Produção permanece intocada</b><p>Alterações de estado de contas só ficam disponíveis com habilitação explícita no servidor e confirmação individual abaixo. Nenhum token administrativo é solicitado pelo navegador.</p></div>`,
     );
   $("#content").innerHTML = html;
+  if (page[0] === "settings") mountAccountManagement($("#content"));
   if (page[0] === "activity") {
     const update = () => {
       const list = records.filter(
