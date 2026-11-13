@@ -7,7 +7,10 @@ import { createServer } from "../server.mjs";
 import { createManagementAdapter } from "../adapter.mjs";
 
 async function withServer(options, check) {
-  const server = createServer(options);
+  const server = createServer({
+    ...options,
+    consolePassword: "mock-console-password-only",
+  });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   try {
     await check(`http://127.0.0.1:${server.address().port}`);
@@ -71,7 +74,11 @@ test("sidecar projects fake management and file telemetry without exposing crede
       },
     });
     await withServer({ adapter, snapshotPath }, async (base) => {
-      const response = await fetch(base + "/api/snapshot");
+      const response = await fetch(base + "/api/snapshot", {
+        headers: {
+          Authorization: `Basic ${Buffer.from("gateway:mock-console-password-only").toString("base64")}`,
+        },
+      });
       assert.equal(response.status, 200);
       assert.equal(response.headers.get("cache-control"), "no-store");
       const text = await response.text();
@@ -111,7 +118,13 @@ test("missing telemetry file retains independent management result and explicit 
   await withServer(
     { adapter, snapshotPath: "/unavailable/gateway-fixture.json" },
     async (base) => {
-      const body = await (await fetch(base + "/api/snapshot")).json();
+      const body = await (
+        await fetch(base + "/api/snapshot", {
+          headers: {
+            Authorization: `Basic ${Buffer.from("gateway:mock-console-password-only").toString("base64")}`,
+          },
+        })
+      ).json();
       assert.equal(body.telemetryStatus, "unavailable");
       assert.deepEqual(body.records, []);
       assert.equal(body.management.models[0].id, "mock-model");
@@ -121,7 +134,13 @@ test("missing telemetry file retains independent management result and explicit 
 
 test("offline default makes zero management calls and advertises no configured source", async () => {
   await withServer({}, async (base) => {
-    const body = await (await fetch(base + "/api/snapshot")).json();
+    const body = await (
+      await fetch(base + "/api/snapshot", {
+        headers: {
+          Authorization: `Basic ${Buffer.from("gateway:mock-console-password-only").toString("base64")}`,
+        },
+      })
+    ).json();
     assert.equal(body.mode, "demo");
     assert.equal(body.management.status, "not-configured");
     assert.equal(body.telemetryStatus, "not-configured");
@@ -139,7 +158,11 @@ test("adapter exception returns generic server error without exception text", as
       },
     },
     async (base) => {
-      const response = await fetch(base + "/api/snapshot");
+      const response = await fetch(base + "/api/snapshot", {
+        headers: {
+          Authorization: `Basic ${Buffer.from("gateway:mock-console-password-only").toString("base64")}`,
+        },
+      });
       assert.equal(response.status, 502);
       assert.ok(!(await response.text()).includes("PRIVATE_ERROR_SENTINEL"));
     },

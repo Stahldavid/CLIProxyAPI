@@ -15,3 +15,13 @@ Date: 2026-11-13. Execution: isolated assistant workspace only.
 
 - The broad upstream run was stopped after it had already reported the four environmental failures (81 packages reported success). Remaining packages were not certified. The isolated console test suite and upstream compile completed independently.
 - Formatting check passed. Node test tooling requires ^22.22.2, ^24.15.0, or >=26.0.0; package metadata now records this requirement.
+
+## Local hardening follow-up (2026-11-13)
+
+- 35/35 Node tests pass, including authenticated connected-mode startup, cross-origin rejection, exact credential comparison, exclusive collector locking, sanitized disk persistence, resume, and uncertain-pop failure with no automatic retry.
+- Prettier check passed; no upstream Go implementation files changed.
+- Collector uses only injected fake fetch responses in tests. No real queue, inference endpoint, user credential, subscription, PC, T3 agent, or existing proxy was accessed.
+- A one-batch collector is not an activated background collection service. Pop-before-persist loss remains possible because upstream has no acknowledgement transaction. Ownership lock is local, not distributed.
+- Authentication protects the local loopback console. Remote HTTPS/SSO/multi-user deployment remains unqualified.
+- Quotas, actual billing, route mutation and credential management remain intentionally unsupported rather than simulated controls.
+- Browser visual QA remains pending; shared browser is reserved for the active call.

@@ -12,7 +12,7 @@ npm start
 # Open http://127.0.0.1:4173
 ```
 
-The default is an explicitly labeled synthetic demonstration. It never discovers existing credentials, reads the user's proxy configuration, calls inference, or automatically connects to any service. The local server binds only to IPv4 loopback and rejects non-local Host headers. Do not expose it publicly or through a tunnel: production authentication/access controls are not implemented.
+The default is an explicitly labeled synthetic demonstration. It never discovers existing credentials, reads the user's proxy configuration, calls inference, or automatically connects to any service. The local server binds only to IPv4 loopback and rejects non-local Host headers. Connected mode requires local HTTP Basic authentication (user `gateway`, server environment `GATEWAY_CONSOLE_PASSWORD`, at least 16 characters, distinct from the management token). Demo mode does not require a password. Cross-origin/cross-site requests are rejected. Do not expose it publicly or through a tunnel: remote TLS, identity-provider authentication and multi-user access controls are not implemented.
 
 ## Real read-only management integration
 
@@ -49,13 +49,13 @@ The console separates:
 
 A Claude Code client using Codex is never counted as Anthropic billing just because of its harness. OAuth does not prove a subscription tier or remaining balance. Unknown values remain unknown, not zero. Token totals are not inferred by summing potentially overlapping cached/reasoning breakdowns. Success rate uses only known outcomes; p95 uses only observed latencies. Currency charges and quota percentages are not fabricated.
 
-**Do not read the upstream usage queue from the browser.** `/v8/management/observability/usage/queue` destructively pops records. This implementation intentionally never calls it. A future live activity pipeline needs one dedicated collector plus durable sanitized history and explicit ownership of that queue; an existing consumer must not be raced or replaced.
+**Do not read the upstream usage queue from the browser.** `/v8/management/observability/usage/queue` destructively pops records. The console intentionally never calls it. The optional separate collector below is the sole component allowed to consume it; an existing consumer must not be raced or replaced.
 
 ## What works and what is not claimed
 
 Implemented: eight views, responsive navigation, offline charts and statistics computed from records, exact attribution details, status/search filters, safe imports, local reset/clear, observed-route explanation, read-only live adapter, redacted partial failure handling and server isolation.
 
-The route simulator explains an observed route; it is not a routing engine, fallback verifier or configuration editor. Settings change only this console session. Security shows boundaries rather than pretending Infisical or Executor is installed. No production-grade auth, live usage collector, actual billing integration, quota fetching, route writing or provider inference verification is included. Those are not hidden behind fake functional buttons.
+The route simulator explains an observed route; it is not a routing engine, fallback verifier or configuration editor. Settings change only this console session. Security shows boundaries rather than pretending Infisical or Executor is installed. Local authentication and a guarded, one-batch collector are included. No remote production authentication, automatic collection scheduler, actual billing integration, quota fetching, route writing or provider inference verification is included. Those are not hidden behind fake functional buttons.
 
 ## Validation
 
@@ -67,3 +67,13 @@ npm run check
 Tests use synthetic records, injected mock management responses, local HTTP and DOM simulation. They do not use a user subscription, key or provider API. `test/browser.cjs` is an optional Playwright visual/interaction check; it needs Playwright and a compatible Chromium (`CHROMIUM_PATH`, default `/usr/bin/chromium`). DOM tests are not a substitute for visual browser validation.
 
 Current implementation baseline: upstream/fork commit `1aaf56bc6a0fc6fce19049ba7ae8554c882304a6`, verified equal at development time. No upstream Go files were changed.
+
+## Optional destructive queue collector
+
+`node collector.mjs` reads **one batch of up to 100 events** from the upstream v8 usage queue and persists a safe snapshot for the console. It is never started by `npm start` or the browser. Only an explicitly authorized operator may configure it, after verifying no other consumer uses that queue. No real queue has been consumed during development.
+
+Required server environment: `GATEWAY_MANAGEMENT_URL`, `GATEWAY_MANAGEMENT_TOKEN`, dedicated `GATEWAY_SNAPSHOT_PATH`, and `GATEWAY_QUEUE_OWNERSHIP=I_OWN_THE_DESTRUCTIVE_USAGE_QUEUE`. Keep this path outside the repository in an owner-private directory. Use the same snapshot path for the authenticated console. Refresh Settings to read new history.
+
+The collector uses an exclusive local `.lock`, a sanitized 10,000-record and 4 MiB rolling history, owner-only new files, atomic replacement and fsync. Raw API keys, source, auth index, user agent, IP, response headers, prompts and arbitrary account/client labels are never persisted. Only a recognized client family is retained from user agent. Provider/executor/model names remain labels, never proof of plan or cost. The local lock does **not** coordinate multiple hosts or other software; exclusive upstream ownership is an operational prerequisite.
+
+A fetch or persistence failure halts collection, retains its lock, and requires manual reconciliation. Do not automatically remove stale locks or retry. The upstream pop API has no acknowledgement transaction: a process crash or dropped response can lose popped events before disk persistence. This collector cannot promise exactly-once delivery or recover missing upstream data. An upstream transactional/acknowledged feed would be needed to eliminate that gap. The `.next` file may contain a sanitized uncommitted batch after a disk failure; preserve it for authorized reconciliation. Scheduling and remote deployment are intentionally not activated.

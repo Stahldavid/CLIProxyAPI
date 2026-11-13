@@ -60,6 +60,7 @@ export function normalizeRecords(snapshot) {
       forwardedModel: label(record.model),
       responseModel: label(record.response_model),
       provider: label(record.provider) || "Unknown provider",
+      executor: label(record.executor_type) || "Unknown executor",
       account: label(record.account_label) || "Unidentified account",
       authMethod: auth || "Unknown",
       subscription: null,

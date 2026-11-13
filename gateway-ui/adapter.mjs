@@ -40,7 +40,7 @@ const text = (value) =>
 const problem = (code) =>
   Object.assign(new Error(code), { diagnosticCode: code });
 
-async function readBounded(response) {
+export async function readBounded(response) {
   const declared = response.headers?.get("content-length");
   if (declared && (!/^\d+$/.test(declared) || Number(declared) > MAX_BYTES)) {
     await response.body?.cancel?.();

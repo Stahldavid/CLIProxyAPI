@@ -1,4 +1,5 @@
 import http from "node:http";
+import { createConsoleAuth, isSameOriginRequest } from "./auth.mjs";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { normalizeRecords } from "./src/telemetry.mjs";
@@ -10,7 +11,17 @@ const files = new Set([
   "telemetry.mjs",
   "demo.mjs",
 ]);
-export function createServer({ adapter = null, snapshotPath = null } = {}) {
+export function createServer({
+  adapter = null,
+  snapshotPath = null,
+  consolePassword = null,
+  managementToken = null,
+} = {}) {
+  const authorized = createConsoleAuth({
+    password: consolePassword,
+    required: Boolean(adapter || snapshotPath),
+    managementToken,
+  });
   return http.createServer(async (req, res) => {
     const headers = {
       "Content-Security-Policy":
@@ -23,6 +34,19 @@ export function createServer({ adapter = null, snapshotPath = null } = {}) {
     if (!/^(127\.0\.0\.1|localhost)(:\d+)?$/.test(host)) {
       res.writeHead(403, headers);
       res.end("Local access only");
+      return;
+    }
+    if (!isSameOriginRequest(req)) {
+      res.writeHead(403, headers);
+      res.end("Same-origin access only");
+      return;
+    }
+    if (!authorized(req)) {
+      res.writeHead(401, {
+        ...headers,
+        "WWW-Authenticate": 'Basic realm="Gateway console", charset="UTF-8"',
+      });
+      res.end("Authentication required");
       return;
     }
     if (req.method !== "GET" && req.method !== "HEAD") {
@@ -103,6 +127,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   }
   createServer({
     adapter,
+    consolePassword: process.env.GATEWAY_CONSOLE_PASSWORD ?? null,
+    managementToken: process.env.GATEWAY_MANAGEMENT_TOKEN ?? null,
     snapshotPath: process.env.GATEWAY_SNAPSHOT_PATH ?? null,
   }).listen(port, "127.0.0.1", () =>
     console.log(
