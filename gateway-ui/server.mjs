@@ -2,7 +2,7 @@ import http from "node:http";
 import { createRoutingManager } from "./routing.mjs";
 import { createStatusManager } from "./management.mjs";
 import { createConsoleAuth, isSameOriginRequest } from "./auth.mjs";
-import { readFile } from "node:fs/promises";
+import { readFile, open } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { normalizeRecords } from "./src/telemetry.mjs";
 import { createManagementAdapter } from "./adapter.mjs";
@@ -143,8 +143,24 @@ export function createServer({
         let telemetryStatus = "not-configured";
         if (snapshotPath) {
           try {
-            const raw = await readFile(snapshotPath);
-            if (raw.length > 5 * 1024 * 1024) throw new Error("too large");
+            const input = await open(snapshotPath, "r");
+            let raw;
+            try {
+              const limit = 5 * 1024 * 1024;
+              if ((await input.stat()).size > limit)
+                throw new Error("too large");
+              const buffer = Buffer.alloc(limit + 1);
+              const { bytesRead } = await input.read(
+                buffer,
+                0,
+                buffer.length,
+                0,
+              );
+              if (bytesRead > limit) throw new Error("too large");
+              raw = buffer.subarray(0, bytesRead);
+            } finally {
+              await input.close();
+            }
             records = normalizeRecords(JSON.parse(raw));
             telemetryStatus = "loaded";
           } catch {
@@ -162,7 +178,10 @@ export function createServer({
         res.writeHead(200, { ...headers, "Content-Type": "application/json" });
         res.end(
           JSON.stringify({
-            mode: adapter || snapshotPath ? "connected" : "demo",
+            mode:
+              adapter || snapshotPath || statusManager || routingManager
+                ? "connected"
+                : "demo",
             checkedAt: new Date().toISOString(),
             records,
             telemetryStatus,

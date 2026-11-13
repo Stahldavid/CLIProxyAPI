@@ -128,6 +128,7 @@ p {
 }
 button,
 select,
+textarea,
 input {
   background: #182138;
   border: 1px solid #3c4966;
@@ -446,5 +447,40 @@ svg {
   }
   .panel {
     padding: 16px;
+  }
+}
+
+/* Overflow remains local to content, with usable keyboard targets. */
+textarea {
+  resize: vertical;
+  min-height: 12rem;
+  line-height: 1.5;
+}
+pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+button,
+select,
+input {
+  min-height: 44px;
+}
+#operation-notice:not(:empty) {
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  border: 1px solid var(--cyan);
+  border-radius: 8px;
+}
+.panel {
+  overflow-x: auto;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation: none !important;
+    transition: none !important;
   }
 }

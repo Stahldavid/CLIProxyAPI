@@ -141,7 +141,9 @@ export function mountRouting(root, fetchImpl = globalThis.fetch) {
             cancel.disabled = true;
             kind.disabled = channel.disabled = load.disabled = true;
             const announce = (text) => {
-              const notice = d.querySelector("#notice");
+              const notice =
+                d.querySelector("#operation-notice") ||
+                d.querySelector("#notice");
               if (notice) notice.textContent = text;
             };
             announce(

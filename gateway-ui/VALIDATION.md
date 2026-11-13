@@ -40,3 +40,11 @@ Date: 2026-11-13. Execution: isolated assistant workspace only.
 - Local upstream Go `TestConfigV8ETagIfMatch` passed, confirming the inspected conditional-write contract. Full server build and Prettier passed. No upstream implementation changed.
 - Missing alias configuration, unsupported fields and absent strong ETags fail closed; no wholesale config reads or writes. The config handler can normalize YAML when saving.
 - No real endpoint was called, no deployment occurred, and browser visual QA is still pending.
+
+## Accessibility and final hardening follow-up (2026-11-13)
+
+- 66/66 Node tests pass, including page-heading focus, table scopes, persistent operation announcements, named account actions, sibling-action lockout, oversized telemetry file rejection, UTF-8 credential bounds and concurrent preview limits.
+- Fixed check-before-await races in both preview maps: 110 parallel requests produce exactly 100 accepted previews and 10 rejections, no writes.
+- Fixed Unicode passwords accepted at startup but larger than the Basic header limit: upper bound now applies to UTF-8 bytes.
+- Telemetry file input is bounded before parsing; optional-manager-only mode no longer incorrectly advertises demo.
+- Browser and screen-reader QA remain pending. DOM/structural checks do not constitute full accessibility certification.

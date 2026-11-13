@@ -147,3 +147,15 @@ test("expiry prevents PUT and mismatched readback is uncertain", async () => {
   g.state.wrongReadback = true;
   assert.deepEqual(await g.manager.execute(p), { status: "uncertain" });
 });
+
+test("concurrent routing previews cannot exceed 100 pending confirmations", async () => {
+  const f = fixture();
+  const results = await Promise.allSettled(
+    Array.from({ length: 110 }, () =>
+      f.manager.preview({ kind: "strategy", value: "fill-first" }),
+    ),
+  );
+  assert.equal(results.filter((row) => row.status === "fulfilled").length, 100);
+  assert.equal(results.filter((row) => row.status === "rejected").length, 10);
+  assert.equal(f.state.writes.length, 0);
+});

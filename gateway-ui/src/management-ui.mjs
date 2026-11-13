@@ -1,6 +1,7 @@
 /** Deliberate two-step account status changes; no automatic write or retry. */
 export function mountAccountManagement(root, fetchImpl = globalThis.fetch) {
   const document = root.ownerDocument;
+  let actionPending = false;
   const panel = document.createElement("section");
   panel.className = "panel";
   const title = document.createElement("h2");
@@ -35,6 +36,7 @@ export function mountAccountManagement(root, fetchImpl = globalThis.fetch) {
     return response.json();
   };
   refresh.onclick = async () => {
+    if (actionPending) return;
     refresh.disabled = true;
     message("Consultando…");
     try {
@@ -58,9 +60,14 @@ export function mountAccountManagement(root, fetchImpl = globalThis.fetch) {
         preview.textContent = account.disabled
           ? "Preparar habilitação"
           : "Preparar desabilitação";
+        preview.setAttribute(
+          "aria-label",
+          `${preview.textContent} de ${account.label}`,
+        );
         row.append(text, preview);
         list.append(row);
         preview.onclick = async () => {
+          if (actionPending) return;
           preview.disabled = true;
           try {
             const plan = await post("/api/account-status/preview", {
@@ -72,18 +79,34 @@ export function mountAccountManagement(root, fetchImpl = globalThis.fetch) {
             warning.textContent = `Confirmar ${plan.disabled ? "desabilitação" : "habilitação"} de ${plan.label}? Isso altera quais contas o proxy pode usar. Confirmação expira em 60 segundos.`;
             const confirm = document.createElement("button");
             confirm.textContent = "Confirmar alteração";
+            confirm.setAttribute(
+              "aria-label",
+              `Confirmar alteração de ${plan.label}`,
+            );
             const cancel = document.createElement("button");
             cancel.textContent = "Cancelar";
+            cancel.setAttribute(
+              "aria-label",
+              `Cancelar alteração de ${plan.label}`,
+            );
             cancel.onclick = () => {
               row.replaceChildren();
               row.textContent = "Cancelado. Nenhuma alteração enviada.";
             };
             confirm.onclick = async () => {
+              if (actionPending) return;
+              actionPending = true;
               confirm.disabled = true;
               cancel.disabled = true;
+              const otherButtons = [...panel.querySelectorAll("button")].filter(
+                (b) => !b.disabled,
+              );
+              otherButtons.forEach((b) => (b.disabled = true));
               refresh.disabled = true;
               const announce = (text) => {
-                const notice = document.querySelector("#notice");
+                const notice =
+                  document.querySelector("#operation-notice") ||
+                  document.querySelector("#notice");
                 if (notice) notice.textContent = text;
               };
               announce("Alteração de conta em andamento; aguarde o resultado.");
@@ -94,7 +117,7 @@ export function mountAccountManagement(root, fetchImpl = globalThis.fetch) {
                 row.replaceChildren();
                 row.textContent =
                   result.status === "applied"
-                    ? "Alteração aplicada e verificada."
+                    ? `Alteração de ${plan.label} aplicada e verificada.`
                     : "Resultado não comprovado. Consulte o estado; não repita automaticamente.";
                 announce(row.textContent);
               } catch {
@@ -103,6 +126,8 @@ export function mountAccountManagement(root, fetchImpl = globalThis.fetch) {
                   "Resultado não comprovado. Consulte o estado antes de decidir nova tentativa.";
                 announce(row.textContent);
               } finally {
+                actionPending = false;
+                otherButtons.forEach((b) => (b.disabled = false));
                 refresh.disabled = false;
               }
             };

@@ -15,15 +15,15 @@
       <nav aria-label="Navegação principal"></nav>
       <footer>
         <span class="dot"></span> Ambiente isolado<br /><small
-          >Sem conexão com provedores</small
+          >Sem API de inferência</small
         >
       </footer>
     </aside>
-    <main id="main">
+    <main id="main" tabindex="-1">
       <header>
         <div>
           <small class="eyebrow">WORKSPACE / LOCAL</small>
-          <h1></h1>
+          <h1 tabindex="-1"></h1>
           <p id="subtitle"></p>
         </div>
         <div class="toolbar">
@@ -37,12 +37,23 @@
           />
         </div>
       </header>
-      <div id="notice" role="status"></div>
+      <div
+        id="notice"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      ></div>
+      <div
+        id="operation-notice"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      ></div>
       <section id="content"></section>
     </main>
-    <dialog id="detail">
+    <dialog id="detail" aria-labelledby="detail-title">
       <button id="close" aria-label="Fechar detalhes">×</button>
-      <h2>Detalhes da requisição</h2>
+      <h2 id="detail-title">Detalhes da requisição</h2>
       <div id="detail-body"></div>
     </dialog>
     <script type="module" src="/app.mjs"></script>

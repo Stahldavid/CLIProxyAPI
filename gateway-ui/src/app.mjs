@@ -39,7 +39,7 @@ const pages = [
     "settings",
     "⚙",
     "Configurações",
-    "Preferências locais, sem alterar seu proxy.",
+    "Fontes locais e operações opcionais com confirmação explícita.",
   ],
 ];
 let records = normalizeRecords(demo),
@@ -70,7 +70,7 @@ const panel = (title, body, sub = "") =>
   `<article class="panel"><h2>${title}</h2>${sub ? `<p>${sub}</p>` : ""}${body}</article>`;
 const table = (heads, rows) =>
   rows.length
-    ? `<table><thead><tr>${heads.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`
+    ? `<table><thead><tr>${heads.map((h) => `<th scope="col">${h}</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`
     : '<div class="empty">Nenhum registro neste recorte.</div>';
 const group = (k) =>
   [...new Set(records.map((r) => r[k] ?? "Não informado"))].map((name) => ({
@@ -88,11 +88,11 @@ function render() {
   $("nav").innerHTML = pages
     .map(
       (p) =>
-        `<a href="#${p[0]}" ${page === p ? 'aria-current="page"' : ""}><i>${p[1]}</i>${p[2]}</a>`,
+        `<a href="#${p[0]}" ${page === p ? 'aria-current="page"' : ""}><i aria-hidden="true">${p[1]}</i>${p[2]}</a>`,
     )
     .join("");
   $("#notice").innerHTML =
-    `<div class="notice">${mode === "Demonstração" ? "Dados sintéticos para validar a interface. Nenhuma requisição real é enviada." : "Snapshot local em memória. Não indica estado atual, saldo ou disponibilidade do provedor."}</div>`;
+    `<div class="notice">${mode === "Demonstração" ? "Dados sintéticos para validar a interface. Nenhuma requisição real é enviada." : "Consulta/snapshot em memória. Dados podem estar desatualizados; não comprovam saldo nem disponibilidade do provedor."}</div>`;
   const s = summarize(records);
   let html = "";
   if (page[0] === "overview") {
@@ -211,7 +211,7 @@ function render() {
       `<div class="filters"><input type="search" id="search" aria-label="Buscar requisições" placeholder="Cliente, modelo ou executor…" value="${esc(query)}"><select id="status" aria-label="Filtrar resultado"><option value="all">Todos os resultados</option><option value="success">Sucesso</option><option value="failed">Falha</option><option value="unknown">Não informado</option></select></div><div id="rows"></div>`,
     );
   if (page[0] === "security")
-    html = `<div class="grid">${panel("Proteções do console", `<dl><dt>Credenciais</dt><dd>Não solicitadas nem persistidas pelo navegador</dd><dt>Prompts e respostas</dt><dd>Não exibidos</dd><dt>Conexões do navegador</dt><dd>Somente este servidor local</dd><dt>Armazenamento</dt><dd>Memória da aba, descartada ao recarregar</dd></dl>`)}${panel("Integrações", `<p>Infisical, Executor e autenticação de produção não estão configurados.</p>${tag("Não conectado", "gray")}<p>Este servidor é somente local. Não publique nem exponha por túnel.</p>`)}</div>${panel("Importação segura", "<p>O importador aceita até 5 MB de JSON, seleciona campos de telemetria e descarta campos não permitidos. Não importe arquivos de credenciais. Rótulos livres ainda podem conter dados pessoais: revise o arquivo antes de compartilhar.</p>")}`;
+    html = `<div class="grid">${panel("Proteções do console", `<dl><dt>Credenciais</dt><dd>Token administrativo permanece no servidor; senha do console é solicitada no modo conectado</dd><dt>Prompts e respostas</dt><dd>Não exibidos</dd><dt>Conexões do navegador</dt><dd>Somente este servidor local</dd><dt>Armazenamento</dt><dd>Exibição em memória da aba; coletor opcional grava histórico sanitizado no servidor</dd></dl>`)}${panel("Integrações", `<p>Infisical, Executor e autenticação de produção não estão configurados.</p>${tag("Não conectado", "gray")}<p>Este servidor é somente local. Não publique nem exponha por túnel.</p>`)}</div>${panel("Importação segura", "<p>O importador aceita até 5 MB de JSON, seleciona campos de telemetria e descarta campos não permitidos. Não importe arquivos de credenciais. Rótulos livres ainda podem conter dados pessoais: revise o arquivo antes de compartilhar.</p>")}`;
   if (page[0] === "settings")
     html = panel(
       "Sessão local",
@@ -320,6 +320,7 @@ $("#close").onclick = () => $("#detail").close();
 window.addEventListener("hashchange", () => {
   if ($("#detail").open) $("#detail").close();
   render();
+  $("h1").focus();
 });
 $("#import").onclick = () => $("#file").click();
 $("#file").onchange = async (e) => {

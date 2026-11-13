@@ -80,3 +80,15 @@ test("protected server challenges before source access and rejects cross-origin 
     await new Promise((resolve) => server.close(resolve));
   }
 });
+
+test("UTF-8 password byte limit prevents valid setup producing an unusable Basic header", () => {
+  assert.throws(
+    () => createConsoleAuth({ password: "漢".repeat(1024) }),
+    /1024 UTF-8 bytes/,
+  );
+  const password = "漢".repeat(300);
+  const check = createConsoleAuth({ password });
+  const authorization = `Basic ${Buffer.from(`gateway:${password}`).toString("base64")}`;
+  assert.ok(authorization.length <= 2048);
+  assert.equal(check({ headers: { authorization } }), true);
+});

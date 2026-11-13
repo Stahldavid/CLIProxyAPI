@@ -140,3 +140,93 @@ test("file credentials with missing runtime classification fail closed", async (
   delete f.row.runtime_only;
   await assert.rejects(f.manager.list());
 });
+
+test("concurrent confirmation of same token emits exactly one PATCH", async () => {
+  const f = fixture();
+  const { accounts } = await f.manager.list();
+  const preview = await f.manager.preview({
+    id: accounts[0].id,
+    disabled: true,
+  });
+  const outcomes = await Promise.allSettled([
+    f.manager.execute(preview),
+    f.manager.execute(preview),
+  ]);
+  assert.equal(outcomes.filter((row) => row.status === "fulfilled").length, 1);
+  assert.equal(outcomes.filter((row) => row.status === "rejected").length, 1);
+  assert.equal(f.calls.filter((c) => c.opts.method === "PATCH").length, 1);
+});
+
+test("PATCH acknowledgement without matching readback remains uncertain", async () => {
+  const row = {
+    name: "synthetic.json",
+    id: "synthetic-id",
+    auth_index: "synthetic-index",
+    provider: "codex",
+    runtime_only: false,
+    source: "file",
+    disabled: false,
+  };
+  let patches = 0;
+  const f = fixture({
+    fetchImpl: async (_url, options) => {
+      if (options.method === "PATCH") {
+        patches++;
+        return Response.json({ status: "ok", disabled: true });
+      }
+      return Response.json({ files: [row] });
+    },
+  });
+  const { accounts } = await f.manager.list();
+  const preview = await f.manager.preview({
+    id: accounts[0].id,
+    disabled: true,
+  });
+  assert.deepEqual(await f.manager.execute(preview), { status: "uncertain" });
+  assert.equal(patches, 1);
+  await assert.rejects(f.manager.execute(preview));
+});
+
+test("expiry during preflight prevents PATCH even if confirmation started in time", async () => {
+  let clock = 0,
+    expireOnRead = false,
+    patches = 0;
+  const row = {
+    name: "synthetic.json",
+    id: "synthetic-id",
+    auth_index: "synthetic-index",
+    provider: "codex",
+    runtime_only: false,
+    source: "file",
+    disabled: false,
+  };
+  const f = fixture({
+    now: () => clock,
+    fetchImpl: async (_url, options) => {
+      if (options.method === "PATCH") patches++;
+      if (expireOnRead) clock = 60000;
+      return Response.json({ files: [row] });
+    },
+  });
+  const { accounts } = await f.manager.list();
+  const preview = await f.manager.preview({
+    id: accounts[0].id,
+    disabled: true,
+  });
+  expireOnRead = true;
+  await assert.rejects(f.manager.execute(preview));
+  assert.equal(patches, 0);
+});
+
+test("concurrent previews cannot exceed 100 pending confirmations", async () => {
+  const f = fixture();
+  const { accounts } = await f.manager.list();
+  const results = await Promise.allSettled(
+    Array.from({ length: 110 }, () =>
+      f.manager.preview({ id: accounts[0].id, disabled: true }),
+    ),
+  );
+  assert.equal(results.filter((row) => row.status === "fulfilled").length, 100);
+  assert.equal(results.filter((row) => row.status === "rejected").length, 10);
+  assert.equal(f.calls.filter((c) => c.opts.method === "PATCH").length, 0);
+});

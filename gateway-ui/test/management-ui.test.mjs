@@ -89,3 +89,60 @@ test("cancel after preview sends no mutation", async () => {
   assert.match(root.textContent, /Cancelado/);
   dom.window.close();
 });
+
+test("account confirmation locks sibling actions and reports labeled outcome", async () => {
+  const dom = new JSDOM('<p id="operation-notice"></p><main></main>'),
+    root = dom.window.document.querySelector("main");
+  let finish,
+    writes = 0;
+  mountAccountManagement(root, async (path, options) =>
+    path.endsWith("/confirm")
+      ? (writes++, new Promise((resolve) => (finish = resolve)))
+      : new Response(
+          JSON.stringify(
+            path.endsWith("/preview")
+              ? {
+                  confirmationToken: "test",
+                  label: "Account A",
+                  disabled: true,
+                }
+              : {
+                  accounts: [
+                    {
+                      id: "a",
+                      label: "Account A",
+                      provider: "codex",
+                      disabled: false,
+                    },
+                    {
+                      id: "b",
+                      label: "Account B",
+                      provider: "codex",
+                      disabled: false,
+                    },
+                  ],
+                },
+          ),
+        ),
+  );
+  await root.querySelector("button").onclick();
+  const previews = [...root.querySelectorAll("button")].filter(
+    (b) => b.textContent === "Preparar desabilitação",
+  );
+  assert.match(previews[0].getAttribute("aria-label"), /Account A/);
+  await previews[0].onclick();
+  const pending = [...root.querySelectorAll("button")]
+    .find((b) => b.textContent === "Confirmar alteração")
+    .onclick();
+  assert.equal(previews[1].disabled, true);
+  await previews[1].onclick();
+  assert.equal(writes, 1);
+  finish(new Response(JSON.stringify({ status: "applied" })));
+  await pending;
+  assert.equal(previews[1].disabled, false);
+  assert.match(
+    dom.window.document.querySelector("#operation-notice").textContent,
+    /Account A.*aplicada/,
+  );
+  dom.window.close();
+});

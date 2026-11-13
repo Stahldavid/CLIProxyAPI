@@ -168,3 +168,23 @@ test("adapter exception returns generic server error without exception text", as
     },
   );
 });
+
+test("oversized snapshot is rejected without claiming zero telemetry", async () => {
+  const folder = await mkdtemp(join(tmpdir(), "gateway-large-file-"));
+  try {
+    const snapshotPath = join(folder, "history.json");
+    await writeFile(snapshotPath, " ".repeat(6 * 1024 * 1024));
+    await withServer({ snapshotPath }, async (base) => {
+      const response = await fetch(base + "/api/snapshot", {
+        headers: {
+          Authorization: `Basic ${Buffer.from("gateway:mock-console-password-only").toString("base64")}`,
+        },
+      });
+      const body = await response.json();
+      assert.equal(body.telemetryStatus, "unavailable");
+      assert.equal(body.mode, "connected");
+    });
+  } finally {
+    await rm(folder, { recursive: true, force: true });
+  }
+});

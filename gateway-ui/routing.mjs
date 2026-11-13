@@ -127,6 +127,7 @@ export function createRoutingManager({
         if (isDeepStrictEqual(before.value, after)) throw problem();
         const confirmationToken = randomBytes(32).toString("hex"),
           expiresAt = now() + 60000;
+        if (pending.size >= 100) throw problem();
         pending.set(confirmationToken, {
           kind: args.kind,
           path,

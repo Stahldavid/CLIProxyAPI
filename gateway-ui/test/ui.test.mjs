@@ -43,6 +43,13 @@ test("8 screens, navigation, safe imports, filters, simulation, clear and reset"
   ]) {
     navigate(id);
     assert.ok($("#content").textContent.length > 40);
+    assert.equal(document.activeElement, $("h1"));
+    assert.equal(
+      document.querySelectorAll('nav [aria-current="page"]').length,
+      1,
+    );
+    for (const th of document.querySelectorAll("th"))
+      assert.equal(th.getAttribute("scope"), "col");
     assert.equal(document.querySelectorAll("nav [aria-current]").length, 1);
   }
   navigate("routes");
@@ -149,5 +156,11 @@ test("8 screens, navigation, safe imports, filters, simulation, clear and reset"
   $("#reset").click();
   navigate("accounts");
   assert.ok(!$("#content").textContent.includes("Account 1"));
+  assert.equal($("main").getAttribute("tabindex"), "-1");
+  assert.equal($("#detail").getAttribute("aria-labelledby"), "detail-title");
+  assert.equal($("#operation-notice").getAttribute("aria-live"), "polite");
+  $("#operation-notice").textContent = "Operação verificada";
+  navigate("settings");
+  assert.equal($("#operation-notice").textContent, "Operação verificada");
   dom.window.close();
 });

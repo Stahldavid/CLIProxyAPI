@@ -123,6 +123,7 @@ export function createStatusManager({
         if (!row || row.disabled === disabled) throw fail();
         const confirmationToken = randomBytes(32).toString("hex"),
           expiresAt = now() + 60000;
+        if (pending.size >= 100) throw fail();
         pending.set(confirmationToken, {
           id,
           fingerprint: identity(row),

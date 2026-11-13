@@ -1,6 +1,6 @@
 # Gateway console
 
-A standalone, read-only console inside the CLIProxyAPI fork. It does not replace the upstream management panel or change the inference pipeline. The working name is **Gateway**. The visual language is dark navy, violet and cyan, with eight distinct views: Overview, Accounts, Models, Routes, Clients, Activity, Security and Settings.
+A standalone console inside the CLIProxyAPI fork, read-only by default with separately opt-in, confirmed management operations. It does not replace the upstream management panel or change the inference pipeline. The working name is **Gateway**. The visual language is dark navy, violet and cyan, with eight distinct views: Overview, Accounts, Models, Routes, Clients, Activity, Security and Settings.
 
 ## Run locally
 
@@ -102,3 +102,9 @@ The alias editor replaces the entire existing list for the selected channel, not
 Every write includes the strong SHA-256 ETag from the preview in `If-Match`. The upstream config handler checks it while holding its configuration mutex. Any intervening config change yields HTTP 412/conflict instead of overwriting. Confirmation is single-use, expires in 60 seconds, and successful readback is required before showing applied. No automatic retries, DELETE, wildcard paths or whole-config writes exist. An uncertain write must be reconciled before retry.
 
 Upstream may normalize/migrate YAML layout when saving any config change; this console does not claim byte-for-byte formatting preservation. This verifies saved configuration, not successful inference, model availability, billing behavior or deployment fitness.
+
+## Accessibility and completion boundary
+
+The console includes a keyboard skip link, focused page heading on navigation, named navigation, table header scope, labeled modal, account-specific action labels, 44px minimum primary control targets, visible focus, reduced-motion support, and a persistent polite live region for operation outcomes across screen changes. JSON editors follow the dark theme and wrap previews rather than overflowing the viewport. Destructive/stateful action panels prevent duplicate concurrent submissions. Structural behavior is tested in DOM simulation; this is not a claim of WCAG conformance, screen-reader certification or visual browser QA.
+
+All code and tests are local/offline-first. Live deployment, remote auth/TLS, provider inference, actual billing/quotas, scheduling the destructive collector and testing on the owner's machine require separate qualification and are not activated by this implementation.

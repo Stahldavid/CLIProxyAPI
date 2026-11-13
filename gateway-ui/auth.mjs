@@ -12,11 +12,11 @@ export function createConsoleAuth({
   if (
     typeof password !== "string" ||
     password.length < 16 ||
-    password.length > 1024 ||
+    Buffer.byteLength(password, "utf8") > 1024 ||
     /[\x00-\x1f\x7f]/.test(password)
   ) {
     throw new TypeError(
-      "Connected console requires a separate GATEWAY_CONSOLE_PASSWORD of 16–1024 characters.",
+      "Connected console requires a separate GATEWAY_CONSOLE_PASSWORD of at least 16 characters and at most 1024 UTF-8 bytes.",
     );
   }
   if (
