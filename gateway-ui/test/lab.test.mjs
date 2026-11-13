@@ -34,7 +34,8 @@ test("lab rejects other projects/environments, unknown tools and arbitrary secre
     [],
   ])
     assert.throws(() => lab.request(bad));
-  assert.equal(lab.snapshot().events.length, 0);
+  assert.equal(lab.snapshot().events.length, 9);
+  assert.ok(lab.snapshot().events.every((event) => event.status === "denied"));
 });
 test("lab blocks deploy without secret resolution and requires explicit one-use approval for writes", () => {
   const lab = createIntegrationLab();
@@ -89,6 +90,7 @@ test("lab HTTP is opt-in and inherits origin guards, JSON boundary, and private 
         enabled ? 200 : 404,
       );
       assert.equal((await fetch(base + "/lab.mjs")).status, 404);
+      assert.equal((await fetch(base + "/lab-services.mjs")).status, 404);
       assert.equal((await fetch(base + "/lab.html")).status, 200);
       const post = (headers) =>
         fetch(base + "/api/lab/request", {

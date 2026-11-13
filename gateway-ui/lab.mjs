@@ -1,13 +1,16 @@
 import { randomUUID } from "node:crypto";
+import { createMockIntegrationServices } from "./lab-services.mjs";
 
 // An architectural simulator, not an Infisical or Executor client.
 // No network, filesystem credentials, subprocess, or environment reads.
 export function createIntegrationLab({
   now = Date.now,
   credentialAvailable = true,
+  services = createMockIntegrationServices({ now }),
 } = {}) {
   const scope = "newton/development";
-  const dummySecret = "FAKE_ONLY_NOT_A_CREDENTIAL";
+  const identity = services.vault.issue();
+  services.vault.setAvailable(credentialAvailable);
   const policies = Object.freeze({
     "docs.search": "allow",
     "issue.create": "confirm",
@@ -47,34 +50,36 @@ export function createIntegrationLab({
       fail("Tool not allowlisted");
   }
   function execute(tool) {
-    // Simulates a server-side credential consumer; never exports secret values.
-    const authenticated =
-      credentialAvailable && dummySecret === "FAKE_ONLY_NOT_A_CREDENTIAL";
-    if (!authenticated) fail("Mock credential unavailable");
-    record(tool, "completed");
-    return {
-      status: "completed",
-      simulated: true,
-      tool,
-      result:
-        tool === "docs.search"
-          ? {
-              matches: [
-                { title: "Newton mock development guide", source: "fixture" },
-              ],
-            }
-          : { issue: "MOCK-001", createdExternally: false },
-    };
+    // Resolve just in time. Do not retain credentials in approval or audit state.
+    try {
+      const credential = services.vault.resolve(identity, scope);
+      const result = services.executor.run({
+        tool,
+        requestedScope: scope,
+        credential,
+      });
+      record(tool, "completed");
+      return { status: "completed", simulated: true, tool, result };
+    } catch {
+      // Never propagate a connector error containing credentials or payloads.
+      record(tool, "failed");
+      fail("Mock credential unavailable or executor failed");
+    }
   }
+
   function expire() {
     for (const [id, item] of pending)
-      if (item.expiresAt <= now()) pending.delete(id);
+      if (item.expiresAt <= now()) {
+        pending.delete(id);
+        record(item.tool, "expired");
+      }
   }
   return {
     snapshot() {
       expire();
       return {
         mode: "simulation",
+        services: services.snapshot(),
         scope,
         secret: {
           reference: "mock://newton/development/TOOL_KEY",
@@ -100,11 +105,21 @@ export function createIntegrationLab({
           tool: v.tool,
           expiresAt: v.expiresAt,
         })),
-        events: [...events],
+        events: events.map((event) => ({ ...event })),
       };
     },
+    revokeIdentity() {
+      services.vault.revoke(identity);
+      pending.clear();
+      record("identity", "revoked");
+    },
     request(input) {
-      validate(input);
+      try {
+        validate(input);
+      } catch (error) {
+        record("request", "denied");
+        throw error;
+      }
       expire();
       const policy = policies[input.tool];
       if (policy === "block") {

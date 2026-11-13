@@ -49,3 +49,31 @@ test("lab UI drives permitted, confirmed, cancelled, blocked and denied fixture 
   assert.doesNotMatch(document.body.textContent, /FAKE_ONLY_NOT_A_CREDENTIAL/);
   dom.window.close();
 });
+
+test("reload recovers server-side pending approval and cancellation updates audit", async () => {
+  const dom = new JSDOM(
+    await readFile(new URL("../src/lab.html", import.meta.url), "utf8"),
+  );
+  globalThis.document = dom.window.document;
+  const lab = createIntegrationLab();
+  lab.request({
+    tool: "issue.create",
+    project: "newton",
+    environment: "development",
+  });
+  globalThis.fetch = async (url, options) => ({
+    ok: true,
+    json: async () =>
+      options?.body ? lab.decide(JSON.parse(options.body)) : lab.snapshot(),
+  });
+  await import("../src/lab-ui.mjs?reload-test");
+  await settle();
+  assert.equal(document.querySelector("#approval").hidden, false);
+  assert.match(document.querySelector("#status").textContent, /recuperada/);
+  document.querySelector("#cancel").click();
+  await settle();
+  assert.equal(lab.snapshot().pending.length, 0);
+  assert.equal(document.querySelector("#approval").hidden, true);
+  assert.match(document.querySelector("#events").textContent, /cancelled/);
+  dom.window.close();
+});

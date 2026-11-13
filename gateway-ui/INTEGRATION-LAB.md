@@ -70,3 +70,29 @@ confirmation/replay/expiry/cancellation, bounded state, missing fixture credenti
 HTTP origin/content-type/body-size boundaries, module non-disclosure, and rejection
 of mixed live configuration. Passing mocks proves only the local behavior, not
 compatibility or security of either vendor or a complete real secret lifecycle.
+
+## Isolated service lifecycle (2026-11-13)
+
+The simulator now separates a mock vault from a mock tool executor. A server-side
+opaque identity expires after five minutes, reads only the Newton development
+fixture, and can be revoked. Restart creates a fresh mock identity; there is no
+silent renewal. Mock rotation invalidates the old value and the next operation
+resolves the current value just in time. Secrets never enter approval records,
+UI responses or audit events. These are in-memory contract doubles, **not vendor
+SDKs, wire-protocol adapters or self-hosted vendor instances**.
+
+Approval, cancellation and blocked operations resolve no credential and invoke no
+tool. Execution consumes approval before attempting the downstream operation,
+with no retry after failure. Query/read tools are not assumed inherently safe:
+the mock allowlist grants only the exact fixture search. A real Executor setup or
+query may have effects, so approval must precede sensitive setup/connection work.
+Denied requests, expired approvals, failures and revocation produce sanitized,
+bounded events. Reload recovers a pending approval from the single-user mock
+server. Revocation/rotation/fault controls are module-test APIs only, not exposed
+as browser administrative endpoints.
+
+Added deterministic tests cover identity expiry, scope denial, revocation,
+rotation, old credential rejection, sensitive-error sanitization, no hidden retry,
+competing decisions, recovered approval UI, and zero resolution before approval.
+They exercise the local broker design; they do not prove native vendor integration,
+real network isolation, OAuth, TLS, vendor permissions or actual billing behavior.

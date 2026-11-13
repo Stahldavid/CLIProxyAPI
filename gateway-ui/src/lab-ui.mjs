@@ -19,6 +19,8 @@ async function api(path = "", body) {
 }
 async function refresh() {
   const data = await api();
+  pending = data.pending[0]?.id ?? null;
+  approval.hidden = !pending;
   const list = document.querySelector("#events");
   list.replaceChildren();
   for (const event of data.events) {
@@ -50,6 +52,12 @@ async function action(path, body) {
       approval.hidden = true;
     }
   } finally {
+    // Restore pending state even after a refused or interrupted operation.
+    try {
+      await refresh();
+    } catch {
+      /* Keep the operation error visible. */
+    }
     busy = false;
     for (const b of document.querySelectorAll("button")) b.disabled = false;
   }
@@ -86,7 +94,9 @@ document
   );
 refresh()
   .then(() => {
-    status.textContent = "Pronto. Selecione um fluxo fictício.";
+    status.textContent = pending
+      ? "Confirmação simulada recuperada. Confirme ou cancele antes de continuar."
+      : "Pronto. Selecione um fluxo fictício.";
   })
   .catch(() => {
     status.textContent =
