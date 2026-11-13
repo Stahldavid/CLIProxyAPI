@@ -1,4 +1,5 @@
 import http from "node:http";
+import { createIntegrationLab } from "./lab.mjs";
 import { createRoutingManager } from "./routing.mjs";
 import { createStatusManager } from "./management.mjs";
 import { createConsoleAuth, isSameOriginRequest } from "./auth.mjs";
@@ -8,6 +9,9 @@ import { normalizeRecords } from "./src/telemetry.mjs";
 import { createManagementAdapter } from "./adapter.mjs";
 const files = new Set([
   "index.html",
+  "lab.html",
+  "lab-ui.mjs",
+  "lab.css",
   "style.css",
   "app.mjs",
   "telemetry.mjs",
@@ -16,6 +20,7 @@ const files = new Set([
   "routing-ui.mjs",
 ]);
 export function createServer({
+  integrationLab = null,
   adapter = null,
   statusManager = null,
   routingManager = null,
@@ -23,6 +28,15 @@ export function createServer({
   consolePassword = null,
   managementToken = null,
 } = {}) {
+  if (
+    integrationLab &&
+    (adapter ||
+      statusManager ||
+      routingManager ||
+      snapshotPath ||
+      managementToken)
+  )
+    throw new Error("Integration lab requires isolated demo mode");
   const authorized = createConsoleAuth({
     password: consolePassword,
     required: Boolean(
@@ -66,6 +80,58 @@ export function createServer({
       return;
     }
     const actionPath = requestURL.pathname;
+    if (actionPath.startsWith("/api/lab")) {
+      const reply = (status, data) => {
+        res.writeHead(status, {
+          ...headers,
+          "Content-Type": "application/json",
+        });
+        res.end(JSON.stringify(data));
+      };
+      if (!integrationLab) {
+        reply(404, { error: "Simulation disabled" });
+        return;
+      }
+      if (actionPath === "/api/lab" && req.method === "GET") {
+        reply(200, integrationLab.snapshot());
+        return;
+      }
+      if (
+        !["/api/lab/request", "/api/lab/decide"].includes(actionPath) ||
+        req.method !== "POST"
+      ) {
+        reply(405, { error: "Method not allowed" });
+        return;
+      }
+      if (req.headers["content-type"] !== "application/json") {
+        reply(415, { error: "JSON required" });
+        return;
+      }
+      try {
+        let body = "";
+        for await (const chunk of req) {
+          body += chunk;
+          if (Buffer.byteLength(body) > 2048) {
+            reply(413, { error: "Request too large" });
+            return;
+          }
+        }
+        const input = JSON.parse(body);
+        reply(
+          200,
+          actionPath.endsWith("/request")
+            ? integrationLab.request(input)
+            : integrationLab.decide(input),
+        );
+      } catch {
+        reply(400, {
+          error:
+            "Invalid request, denied scope or consumed/expired confirmation",
+        });
+      }
+      return;
+    }
+
     const routingAction = actionPath.startsWith("/api/routing");
     const actionBase = routingAction ? "/api/routing" : "/api/account-status";
     const actionManager = routingAction ? routingManager : statusManager;
@@ -242,7 +308,19 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
           enabled: true,
         })
       : null;
+  if (
+    process.env.GATEWAY_INTEGRATION_LAB === "mock" &&
+    (adapter ||
+      statusManager ||
+      routingManager ||
+      process.env.GATEWAY_SNAPSHOT_PATH)
+  )
+    throw new Error("Integration lab requires isolated demo mode");
   createServer({
+    integrationLab:
+      process.env.GATEWAY_INTEGRATION_LAB === "mock"
+        ? createIntegrationLab()
+        : null,
     adapter,
     routingManager,
     statusManager,

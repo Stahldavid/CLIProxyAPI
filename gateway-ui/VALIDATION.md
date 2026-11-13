@@ -60,3 +60,18 @@ After the executor loopback was inaccessible from CUA, the same demo server was 
 - Corrected provider aggregates mislabeled as executor and translated display evidence labels. Executor remains independently reported or unknown in request details.
 - Restored the browser window to its initial desktop width. The unrelated Infisical tab was not modified.
 - 66/66 automated tests still pass after fixes. Connected authentication/write controls remain mock-tested rather than browser-qualified against a live source. This is not screen-reader/WCAG certification.
+
+## 2026-11-13: isolated integration lab
+
+- Added opt-in mock-only Infisical/Executor/model-console architecture preview.
+- `npm run check`: 75 tests passed (including 9 new lab API, policy and DOM flow tests).
+- `npm run format:check`: passed.
+- Go 1.26.10 `go build -o /tmp/gateway-lab-build ./cmd/server`: passed; no Go source changes.
+- Independent review identified mixed-mode construction and tool-array coercion;
+  both corrected with regression tests before checkpointing.
+- Browser-rendered visual QA of the new page has not yet been performed in this
+  checkpoint. DOM tests cover query, request, confirm, cancel, block and scope denial.
+- No live Infisical/Executor API, real machine identity, secret, user subscription,
+  provider call, production computer or external write was used.
+- Pending confirmations are not restored to the frontend after reload; server
+  expires them after 60 seconds. This is an explicitly isolated prototype.
