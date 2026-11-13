@@ -75,3 +75,15 @@ After the executor loopback was inaccessible from CUA, the same demo server was 
   provider call, production computer or external write was used.
 - Pending confirmations are not restored to the frontend after reload; server
   expires them after 60 seconds. This is an explicitly isolated prototype.
+
+### Integration lab browser follow-up
+
+- Cloud Chromium tab 12 opened `/lab.html` at port 4175, using a dedicated
+  cloud Terminal tab (not the user's PC and not the existing console server).
+- Inspected rendered dark three-layer layout and policy panel at 1180 CSS px;
+  document scroll width 1165 px, no horizontal page overflow.
+- Browser-verified fixture documentation lookup, pending confirmation, confirmed
+  MOCK-001 result with `createdExternally:false`, blocked deploy, and denied
+  production scope. Sanitized trail updated after each operation.
+- No real service or credential involved. Narrow-layout visual QA and screen
+  reader testing remain unperformed; automated DOM cancellation tests passed.
