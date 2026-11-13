@@ -12,3 +12,6 @@ Date: 2026-11-13. Execution: isolated assistant workspace only.
 
 - Console: 28/28 tests passed after review fixes, including stale asynchronous refresh protection.
 - The full upstream suite reports sandbox network-interface/socket failures in `internal/client/codex/live` and `internal/discovery`; these files are unchanged by this work. Full suite is not a pass.
+
+- The broad upstream run was stopped after it had already reported the four environmental failures (81 packages reported success). Remaining packages were not certified. The isolated console test suite and upstream compile completed independently.
+- Formatting check passed. Node test tooling requires ^22.22.2, ^24.15.0, or >=26.0.0; package metadata now records this requirement.

@@ -6,10 +6,11 @@
   "scripts": {
     "start": "node server.mjs",
     "test": "node --test test/*.test.mjs",
-    "check": "node --check src/app.mjs && node --check server.mjs && node --test test/*.test.mjs"
+    "check": "node --check src/app.mjs && node --check server.mjs && node --test test/*.test.mjs",
+    "format:check": "prettier --check src/ *.mjs test/ package.json"
   },
   "engines": {
-    "node": ">=20"
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
   },
   "devDependencies": {
     "jsdom": "^31.0.1",

@@ -4,7 +4,7 @@ A standalone, read-only console inside the CLIProxyAPI fork. It does not replace
 
 ## Run locally
 
-Requires Node 20+; no production dependencies or model API calls.
+Requires Node 22.22.2+, 24.15+ or 26+ (matching the test tooling); no production dependencies or model API calls.
 
 ```sh
 cd gateway-ui

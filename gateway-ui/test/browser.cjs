@@ -47,26 +47,24 @@ const assert = require("node:assert/strict");
     await page.getByRole("button", { name: "Fechar detalhes" }).click();
     await page.locator("#search").fill("no such record");
     assert.match(await page.locator("#rows").innerText(), /Nenhum registro/);
-    await page
-      .locator("#file")
-      .setInputFiles({
-        name: "safe.json",
-        mimeType: "application/json",
-        buffer: Buffer.from(
-          JSON.stringify({
-            records: [
-              {
-                id: "test",
-                client_label: "Claude Code",
-                provider: "codex",
-                model: "<img src=x onerror=alert(1)>",
-                api_key: "SECRET-DO-NOT-RENDER",
-                failed: false,
-              },
-            ],
-          }),
-        ),
-      });
+    await page.locator("#file").setInputFiles({
+      name: "safe.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(
+        JSON.stringify({
+          records: [
+            {
+              id: "test",
+              client_label: "Claude Code",
+              provider: "codex",
+              model: "<img src=x onerror=alert(1)>",
+              api_key: "SECRET-DO-NOT-RENDER",
+              failed: false,
+            },
+          ],
+        }),
+      ),
+    });
     assert.equal(await page.locator("#mode").innerText(), "Snapshot importado");
     assert.ok(
       !(await page.locator("body").innerText()).includes(
@@ -74,13 +72,11 @@ const assert = require("node:assert/strict");
       ),
     );
     assert.equal(await page.locator("#rows img").count(), 0);
-    await page
-      .locator("#file")
-      .setInputFiles({
-        name: "bad.json",
-        mimeType: "application/json",
-        buffer: Buffer.from("{bad"),
-      });
+    await page.locator("#file").setInputFiles({
+      name: "bad.json",
+      mimeType: "application/json",
+      buffer: Buffer.from("{bad"),
+    });
     assert.match(await page.locator("#notice").innerText(), /recusada/);
     await page.locator('nav a[href="#settings"]').click();
     await page.getByText("Limpar sessão", { exact: true }).click();
