@@ -156,6 +156,10 @@ test("8 screens, navigation, safe imports, filters, simulation, clear and reset"
   $("#reset").click();
   navigate("accounts");
   assert.ok(!$("#content").textContent.includes("Account 1"));
+  navigate("models");
+  $(".skip").click();
+  assert.equal(window.location.hash, "#models");
+  assert.equal(document.activeElement, $("#main"));
   assert.equal($("main").getAttribute("tabindex"), "-1");
   assert.equal($("#detail").getAttribute("aria-labelledby"), "detail-title");
   assert.equal($("#operation-notice").getAttribute("aria-live"), "polite");

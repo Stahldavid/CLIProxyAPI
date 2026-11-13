@@ -48,3 +48,15 @@ Date: 2026-11-13. Execution: isolated assistant workspace only.
 - Fixed Unicode passwords accepted at startup but larger than the Basic header limit: upper bound now applies to UTF-8 bytes.
 - Telemetry file input is bounded before parsing; optional-manager-only mode no longer incorrectly advertises demo.
 - Browser and screen-reader QA remain pending. DOM/structural checks do not constitute full accessibility certification.
+
+## Browser visual and keyboard QA (2026-11-13)
+
+After the executor loopback was inaccessible from CUA, the same demo server was started through the cloud computer's native terminal with the already-installed Node runtime. No installation, public tunnel, user PC, account or external API was used.
+
+- CUA opened a separate localhost tab and inspected all eight screens.
+- Desktop (1180 CSS px), narrow (598 px) and compact (500 px) layouts showed no document-level horizontal overflow. Tables retained local scrolling. Widths below 500 px and physical touch devices were not tested.
+- Verified activity failure filter (four synthetic failures), details modal, Escape dismissal, route attribution example, clear/restore session, and explicit disabled-management messages.
+- Found a real keyboard defect: the skip link changed hash routing to Overview. Fixed it to retain the current route and focus main; browser retest confirmed Models remained selected and main received focus.
+- Corrected provider aggregates mislabeled as executor and translated display evidence labels. Executor remains independently reported or unknown in request details.
+- Restored the browser window to its initial desktop width. The unrelated Infisical tab was not modified.
+- 66/66 automated tests still pass after fixes. Connected authentication/write controls remain mock-tested rather than browser-qualified against a live source. This is not screen-reader/WCAG certification.

@@ -65,6 +65,12 @@ const $ = (s) => document.querySelector(s),
     x == null
       ? "Não informado"
       : new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 }).format(x);
+const evidence = (value) =>
+  ({
+    declared: "Declarado no registro",
+    "user-agent heuristic": "Inferido do user-agent",
+    unavailable: "Não informado",
+  })[value] || "Não informado";
 const tag = (s, c = "") => `<span class="badge ${c}">${esc(s)}</span>`;
 const panel = (title, body, sub = "") =>
   `<article class="panel"><h2>${title}</h2>${sub ? `<p>${sub}</p>` : ""}${body}</article>`;
@@ -78,7 +84,7 @@ const group = (k) =>
     rows: records.filter((r) => (r[k] ?? "Não informado") === name),
   }));
 const bars = (groups) =>
-  `<div class="bars">${groups.map((g) => `<div class="bar-row"><div class="bar-label"><span>${esc(g.name)}</span><b>${g.requests} requests</b></div><div class="track"><div class="fill" style="width:${Math.max(0, Math.min(100, (g.requests / Math.max(1, records.length)) * 100))}%"></div></div></div>`).join("")}</div>`;
+  `<div class="bars">${groups.map((g) => `<div class="bar-row"><div class="bar-label"><span>${esc(g.name)}</span><b>${g.requests} requisições</b></div><div class="track"><div class="fill" style="width:${Math.max(0, Math.min(100, (g.requests / Math.max(1, records.length)) * 100))}%"></div></div></div>`).join("")}</div>`;
 function render() {
   const page = pages.find((p) => p[0] === location.hash.slice(1)) ?? pages[0];
   document.title = `${page[2]} · Gateway`;
@@ -120,13 +126,13 @@ function render() {
       )
       .join(
         "",
-      )}</div><div class="grid">${panel("Distribuição por executor", bars(s.providers), "Contagem de requisições, não disponibilidade do serviço.")}${panel("Aplicativos de origem", bars(s.clients), "Claude Code pode usar Codex. Os dois eixos são independentes.")}</div>${panel("Atribuição sem ambiguidades", `<div class="flow"><div class="node"><small>Aplicativo</small><b>Claude Code</b>Harness / cliente</div><span class="arrow">→</span><div class="node"><small>Gateway</small><b>Alias → modelo</b>Roteamento</div><span class="arrow">→</span><div class="node"><small>Executor</small><b>Codex</b>Conta de destino</div></div><p>Exemplo conceitual. OAuth não comprova plano, saldo nem cobrança. Custo monetário: não informado.</p>`)}`;
+      )}</div><div class="grid">${panel("Distribuição por provedor", bars(s.providers), "Contagem de requisições, não disponibilidade do serviço.")}${panel("Aplicativos de origem", bars(s.clients), "Claude Code pode usar Codex. Os dois eixos são independentes.")}</div>${panel("Atribuição sem ambiguidades", `<div class="flow"><div class="node"><small>Aplicativo</small><b>Claude Code</b>Harness / cliente</div><span class="arrow">→</span><div class="node"><small>Gateway</small><b>Alias → modelo</b>Roteamento</div><span class="arrow">→</span><div class="node"><small>Executor</small><b>Codex</b>Conta de destino</div></div><p>Exemplo conceitual. OAuth não comprova plano, saldo nem cobrança. Custo monetário: não informado.</p>`)}`;
   }
   if (page[0] === "accounts" && connection?.management?.accounts?.length)
     html = panel(
       "Inventário administrativo",
       table(
-        ["Conta", "Executor", "Estado", "Desabilitada"],
+        ["Conta", "Provedor", "Estado", "Desabilitada"],
         connection.management.accounts.map((a) => [
           esc(a.label),
           esc(a.provider),
@@ -142,9 +148,9 @@ function render() {
       table(
         [
           "Rótulo seguro",
-          "Executor",
+          "Provedor",
           "Autenticação",
-          "Requests",
+          "Requisições",
           "Plano / custo",
         ],
         group("account").map((g) => [
@@ -161,7 +167,7 @@ function render() {
     html = panel(
       "Catálogo administrativo",
       table(
-        ["Modelo", "Nome", "Executor"],
+        ["Modelo", "Nome", "Provedor"],
         connection.management.models.map((m) => [
           esc(m.id),
           esc(m.name),
@@ -174,7 +180,7 @@ function render() {
     html = panel(
       "Caminhos de modelos",
       table(
-        ["Solicitado / alias", "Encaminhado", "Resposta", "Executor"],
+        ["Solicitado / alias", "Encaminhado", "Resposta", "Provedor"],
         records
           .slice(0, 30)
           .map((r) => [
@@ -190,10 +196,14 @@ function render() {
     html = panel(
       "Aplicativos observados",
       table(
-        ["Cliente", "Evidência", "Executores usados", "Requests"],
+        ["Cliente", "Evidência", "Provedores usados", "Requisições"],
         group("client").map((g) => [
           esc(g.name),
-          esc([...new Set(g.rows.map((r) => r.clientEvidence))].join(", ")),
+          esc(
+            [...new Set(g.rows.map((r) => evidence(r.clientEvidence)))].join(
+              ", ",
+            ),
+          ),
           esc([...new Set(g.rows.map((r) => r.provider))].join(", ")),
           g.rows.length,
         ]),
@@ -208,7 +218,7 @@ function render() {
   if (page[0] === "activity")
     html = panel(
       "Requisições",
-      `<div class="filters"><input type="search" id="search" aria-label="Buscar requisições" placeholder="Cliente, modelo ou executor…" value="${esc(query)}"><select id="status" aria-label="Filtrar resultado"><option value="all">Todos os resultados</option><option value="success">Sucesso</option><option value="failed">Falha</option><option value="unknown">Não informado</option></select></div><div id="rows"></div>`,
+      `<div class="filters"><input type="search" id="search" aria-label="Buscar requisições" placeholder="Cliente, modelo ou provedor…" value="${esc(query)}"><select id="status" aria-label="Filtrar resultado"><option value="all">Todos os resultados</option><option value="success">Sucesso</option><option value="failed">Falha</option><option value="unknown">Não informado</option></select></div><div id="rows"></div>`,
     );
   if (page[0] === "security")
     html = `<div class="grid">${panel("Proteções do console", `<dl><dt>Credenciais</dt><dd>Token administrativo permanece no servidor; senha do console é solicitada no modo conectado</dd><dt>Prompts e respostas</dt><dd>Não exibidos</dd><dt>Conexões do navegador</dt><dd>Somente este servidor local</dd><dt>Armazenamento</dt><dd>Exibição em memória da aba; coletor opcional grava histórico sanitizado no servidor</dd></dl>`)}${panel("Integrações", `<p>Infisical, Executor e autenticação de produção não estão configurados.</p>${tag("Não conectado", "gray")}<p>Este servidor é somente local. Não publique nem exponha por túnel.</p>`)}</div>${panel("Importação segura", "<p>O importador aceita até 5 MB de JSON, seleciona campos de telemetria e descarta campos não permitidos. Não importe arquivos de credenciais. Rótulos livres ainda podem conter dados pessoais: revise o arquivo antes de compartilhar.</p>")}`;
@@ -231,7 +241,7 @@ function render() {
             .includes(query.toLowerCase()),
       );
       $("#rows").innerHTML = table(
-        ["ID", "Cliente → executor", "Modelo", "Tokens", "Resultado", ""],
+        ["ID", "Cliente → provedor", "Modelo", "Tokens", "Resultado", ""],
         list
           .slice(0, 200)
           .map((r) => [
@@ -296,12 +306,17 @@ function render() {
 function details(r) {
   return `<dl>${[
     ["Cliente", r.client],
-    ["Evidência do cliente", r.clientEvidence],
+    ["Evidência do cliente", evidence(r.clientEvidence)],
     ["Modelo solicitado", r.requestedModel],
     ["Modelo encaminhado", r.forwardedModel],
     ["Modelo na resposta", r.responseModel],
     ["Provedor", r.provider],
-    ["Executor", r.executor || "Não informado"],
+    [
+      "Executor",
+      r.executor && r.executor !== "Unknown executor"
+        ? r.executor
+        : "Não informado",
+    ],
     ["Conta", r.account],
     ["Método de autenticação", r.authMethod],
     ["Assinatura / plano", "Não informado"],
@@ -316,6 +331,10 @@ function detail(r) {
   $("#detail-body").innerHTML = details(r);
   $("#detail").showModal();
 }
+$(".skip").onclick = (event) => {
+  event.preventDefault();
+  $("#main").focus();
+};
 $("#close").onclick = () => $("#detail").close();
 window.addEventListener("hashchange", () => {
   if ($("#detail").open) $("#detail").close();
