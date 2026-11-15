@@ -1,4 +1,5 @@
 import http from "node:http";
+import { createHomeAdapter, panelOrigin } from "./home.mjs";
 import { createIntegrationLab } from "./lab.mjs";
 import { createRoutingManager } from "./routing.mjs";
 import { createStatusManager } from "./management.mjs";
@@ -20,6 +21,10 @@ const files = new Set([
   "routing-ui.mjs",
 ]);
 export function createServer({
+  homeAdapter = null,
+  homeToken = null,
+  homePanelOrigin = null,
+  cpaPanelOrigin = null,
   integrationLab = null,
   adapter = null,
   statusManager = null,
@@ -28,9 +33,16 @@ export function createServer({
   consolePassword = null,
   managementToken = null,
 } = {}) {
+  const panels = {
+    home: panelOrigin(homePanelOrigin),
+    cpa: panelOrigin(cpaPanelOrigin),
+  };
+  if (homeToken && consolePassword === homeToken)
+    throw new TypeError("Console and Home credentials must be different.");
   if (
     integrationLab &&
-    (adapter ||
+    (homeAdapter ||
+      adapter ||
       statusManager ||
       routingManager ||
       snapshotPath ||
@@ -40,7 +52,7 @@ export function createServer({
   const authorized = createConsoleAuth({
     password: consolePassword,
     required: Boolean(
-      adapter || snapshotPath || statusManager || routingManager,
+      homeAdapter || adapter || snapshotPath || statusManager || routingManager,
     ),
     managementToken,
   });
@@ -245,13 +257,21 @@ export function createServer({
         res.end(
           JSON.stringify({
             mode:
-              adapter || snapshotPath || statusManager || routingManager
+              homeAdapter ||
+              adapter ||
+              snapshotPath ||
+              statusManager ||
+              routingManager
                 ? "connected"
                 : "demo",
             checkedAt: new Date().toISOString(),
             records,
             telemetryStatus,
             management,
+            panels,
+            home: homeAdapter
+              ? await homeAdapter.snapshot()
+              : { status: "not-configured", nodes: [] },
           }),
         );
       } catch {
@@ -317,6 +337,15 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   )
     throw new Error("Integration lab requires isolated demo mode");
   createServer({
+    homeAdapter: process.env.GATEWAY_HOME_URL
+      ? createHomeAdapter({
+          baseURL: process.env.GATEWAY_HOME_URL,
+          token: process.env.GATEWAY_HOME_TOKEN,
+        })
+      : null,
+    homeToken: process.env.GATEWAY_HOME_TOKEN ?? null,
+    homePanelOrigin: process.env.GATEWAY_HOME_PANEL_ORIGIN ?? null,
+    cpaPanelOrigin: process.env.GATEWAY_CPA_PANEL_ORIGIN ?? null,
     integrationLab:
       process.env.GATEWAY_INTEGRATION_LAB === "mock"
         ? createIntegrationLab()

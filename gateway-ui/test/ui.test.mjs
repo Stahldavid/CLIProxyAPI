@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { JSDOM } from "jsdom";
-test("8 screens, navigation, safe imports, filters, simulation, clear and reset", async () => {
+test("9 screens, navigation, safe imports, filters, simulation, clear and reset", async () => {
   const dom = new JSDOM(
     await readFile(new URL("../src/index.html", import.meta.url), "utf8"),
     { url: "http://localhost:4173" },
@@ -14,6 +14,11 @@ test("8 screens, navigation, safe imports, filters, simulation, clear and reset"
     ok: true,
     json: async () => ({
       mode: "demo",
+      home: {
+        status: "connected",
+        nodes: [{ label: "CPA 1", healthy: true, clients: 2 }],
+      },
+      panels: { home: "http://localhost:29327", cpa: "http://localhost:29328" },
       management: { status: "not-configured" },
       telemetryStatus: "not-configured",
     }),
@@ -32,6 +37,7 @@ test("8 screens, navigation, safe imports, filters, simulation, clear and reset"
     window.dispatchEvent(new window.HashChangeEvent("hashchange"));
   };
   for (const id of [
+    "infrastructure",
     "overview",
     "accounts",
     "models",
@@ -52,6 +58,11 @@ test("8 screens, navigation, safe imports, filters, simulation, clear and reset"
       assert.equal(th.getAttribute("scope"), "col");
     assert.equal(document.querySelectorAll("nav [aria-current]").length, 1);
   }
+  navigate("infrastructure");
+  assert.match($("#content").textContent, /CPA 1/);
+  const native = document.querySelector('#content a[href*="management.html"]');
+  assert.equal(native.getAttribute("rel"), "noopener noreferrer");
+  assert.equal(native.getAttribute("target"), "_blank");
   navigate("routes");
   $("#route").value = "1";
   $("#simulate").click();

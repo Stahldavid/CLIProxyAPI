@@ -3,6 +3,12 @@ import { demo } from "./demo.mjs";
 import { mountRouting } from "./routing-ui.mjs";
 import { mountAccountManagement } from "./management-ui.mjs";
 const pages = [
+  [
+    "infrastructure",
+    "◈",
+    "Home e nós",
+    "Controle central, execução distribuída e acesso completo aos painéis nativos.",
+  ],
   ["overview", "⌂", "Visão geral", "Tráfego e atribuição em um só lugar."],
   [
     "accounts",
@@ -86,7 +92,9 @@ const group = (k) =>
 const bars = (groups) =>
   `<div class="bars">${groups.map((g) => `<div class="bar-row"><div class="bar-label"><span>${esc(g.name)}</span><b>${g.requests} requisições</b></div><div class="track"><div class="fill" style="width:${Math.max(0, Math.min(100, (g.requests / Math.max(1, records.length)) * 100))}%"></div></div></div>`).join("")}</div>`;
 function render() {
-  const page = pages.find((p) => p[0] === location.hash.slice(1)) ?? pages[0];
+  const page =
+    pages.find((p) => p[0] === location.hash.slice(1)) ??
+    pages.find((p) => p[0] === "overview");
   document.title = `${page[2]} · Gateway`;
   $("h1").textContent = page[2];
   $("#subtitle").textContent = page[3];
@@ -222,6 +230,43 @@ function render() {
     );
   if (page[0] === "security")
     html = `<div class="grid">${panel("Proteções do console", `<dl><dt>Credenciais</dt><dd>Token administrativo permanece no servidor; senha do console é solicitada no modo conectado</dd><dt>Prompts e respostas</dt><dd>Não exibidos</dd><dt>Conexões do navegador</dt><dd>Somente este servidor local</dd><dt>Armazenamento</dt><dd>Exibição em memória da aba; coletor opcional grava histórico sanitizado no servidor</dd></dl>`)}${panel("Integrações", `<p>Infisical, Executor e autenticação de produção não estão configurados.</p>${tag("Não conectado", "gray")}<p>Este servidor é somente local. Não publique nem exponha por túnel.</p>`)}</div>${panel("Importação segura", "<p>O importador aceita até 5 MB de JSON, seleciona campos de telemetria e descarta campos não permitidos. Não importe arquivos de credenciais. Rótulos livres ainda podem conter dados pessoais: revise o arquivo antes de compartilhar.</p>")}`;
+  if (page[0] === "infrastructure") {
+    const home = connection?.home;
+    const links = (origin, entries) =>
+      origin
+        ? entries
+            .map(
+              ([label, path]) =>
+                `<p><a href="${esc(origin + path)}" target="_blank" rel="noopener noreferrer">${esc(label)} ↗</a></p>`,
+            )
+            .join("")
+        : "<p>Origem do painel não configurada. Nenhum endereço presumido.</p>";
+    html = `<div class="grid">${panel("Home · plano de controle", `<p>Credenciais, renovação e distribuição de configuração. Não é o endpoint de inferência.</p>${tag(home?.status ?? "not-configured")}<p>Consulta: ${esc(home?.checkedAt)}</p><button id="refresh">Atualizar fonte</button>`)}${panel(
+      "CPAs · execução",
+      `<p>Os nós executam requisições; o seletor escolhe o caminho. Saúde do nó não comprova inferência nem fallback.</p>${table(
+        ["Nó anonimizado", "Saúde reportada", "Clientes"],
+        (home?.nodes ?? []).map((n) => [
+          esc(n.label),
+          n.healthy === true
+            ? "Saudável"
+            : n.healthy === false
+              ? "Não saudável"
+              : "Não informada",
+          num(n.clients),
+        ]),
+      )}<p>Identidades, endereços e segredos não são copiados para o navegador.</p>`,
+    )}</div><div class="grid">${panel(
+      "HMC completo · painel oficial",
+      links(connection?.panels?.home, [
+        ["Dashboard", "/management.html#/admin/dashboard"],
+        ["Upstream / OAuth / APIs", "/management.html#/admin/upstream"],
+        ["Nós e sistema", "/management.html#/admin/system-nodes"],
+        ["Uso", "/management.html#/admin/usage"],
+        ["Configuração e demais recursos", "/management.html#/admin/config"],
+      ]),
+      "Abre em outra aba, com autenticação própria. Nenhum token é anexado ao link.",
+    )}${panel("CPA · painel nativo", links(connection?.panels?.cpa, [["Abrir painel nativo", "/management.html"]]), "Todas as funções originais permanecem disponíveis; este console não as substitui.")}</div>${panel("Cobertura e limites", "<p>Integrado aqui: leitura sanitizada de saúde e número de clientes dos nós Home, além da telemetria CPA opcional. OAuth, renovação, quotas, certificados, plugins, logs e administração completa continuam no HMC nativo.</p><p>WebSocket, seleção PC/VM, cobrança e disponibilidade real precisam de evidência de execução. Não são inferidos deste inventário. A consulta não altera o Home nem consome a fila de uso.</p>")}`;
+  }
   if (page[0] === "settings")
     html = panel(
       "Sessão local",

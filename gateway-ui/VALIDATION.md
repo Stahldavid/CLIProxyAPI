@@ -87,3 +87,17 @@ After the executor loopback was inaccessible from CUA, the same demo server was 
   production scope. Sanitized trail updated after each operation.
 - No real service or credential involved. Narrow-layout visual QA and screen
   reader testing remain unperformed; automated DOM cancellation tests passed.
+
+## 2026-11-15: additive Home workspace
+
+- Home contract inspected in CLIProxyAPIHome `internal/managementhttp/routes_v8.go`
+  and `internal/cluster/management/nodes.go`; HMC route source inspected.
+- Added safe GET-only node projection and native HMC/CPA navigation, with bounded
+  responses, redirect rejection, separate authentication and secret-free output.
+- 89 automated tests pass, including nine UI screens, strict panel-origin rules,
+  malformed/oversize/unavailable Home responses, sanitization, auth separation,
+  navigation and existing import/management regressions. Prettier check passed.
+- No live Home token used; no user services changed. Live Home connectivity and
+  actual authenticated browser navigation remain deployment qualification tasks.
+- No native functionality removed. This does not claim complete visual embedding
+  or feature parity with HMC; its native interface remains the authoritative UI.

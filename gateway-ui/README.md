@@ -108,3 +108,37 @@ Upstream may normalize/migrate YAML layout when saving any config change; this c
 The console includes a keyboard skip link, focused page heading on navigation, named navigation, table header scope, labeled modal, account-specific action labels, 44px minimum primary control targets, visible focus, reduced-motion support, and a persistent polite live region for operation outcomes across screen changes. JSON editors follow the dark theme and wrap previews rather than overflowing the viewport. Destructive/stateful action panels prevent duplicate concurrent submissions. Structural behavior is tested in DOM simulation; this is not a claim of WCAG conformance, screen-reader certification or visual browser QA.
 
 All code and tests are local/offline-first. Live deployment, remote auth/TLS, provider inference, actual billing/quotas, scheduling the destructive collector and testing on the owner's machine require separate qualification and are not activated by this implementation.
+
+## Home and native-management workspace
+
+The `Home e nós` screen adds a separate read-only Home adapter. It requests only
+`GET /v8/management/nodes`; it does not request config, credentials, grants,
+logs, or the destructive usage queue. Projection is limited to anonymous node
+labels, reported healthy/unknown state, and client counts. Labels are positional
+and are not stable node identities. Healthy does not mean inference was tested.
+
+Optional server environment variables:
+
+- `GATEWAY_HOME_URL`: Home origin reachable **from the console server**.
+- `GATEWAY_HOME_TOKEN`: existing Home management token, server-side only.
+- `GATEWAY_CONSOLE_PASSWORD`: separate console password, required when connected.
+- `GATEWAY_HOME_PANEL_ORIGIN`: Home origin reachable **from the user's browser**.
+- `GATEWAY_CPA_PANEL_ORIGIN`: CPA origin reachable **from the user's browser**.
+
+Origins must contain no user info, path, query, or fragment. HTTPS is required
+except explicit loopback HTTP. No destination is inferred from another machine's
+localhost. Keep tokens out of URLs and source control. Use the existing secure
+service environment mechanism, not a browser form or shell command history.
+
+Native panels open in separate tabs with their own authentication and no token
+handoff. HMC routes were checked against the inspected HMC source: Dashboard,
+Upstream, System Nodes, Usage and Config; full CPA management remains reachable.
+This is additive integration, **not feature parity or a replacement**: OAuth,
+certificates, quota, plugins, billing and full administration remain in HMC.
+No iframe, reverse proxy or duplicated authentication/refresh authority is added.
+
+The console remains loopback-only. This change does not authorize Tailnet Serve,
+Funnel, firewall changes or deployment. In particular do not append it to an
+existing public Funnel endpoint. A distinct private route requires security
+review and authorization. Native links being configured does not expose the
+console or establish remote authentication.
