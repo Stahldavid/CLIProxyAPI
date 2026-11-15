@@ -6,7 +6,10 @@ import { createStatusManager } from "./management.mjs";
 import { createConsoleAuth, isSameOriginRequest } from "./auth.mjs";
 import { readFile, open } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { normalizeRecords } from "./src/telemetry.mjs";
+import {
+  normalizeRecords,
+  normalizeSnapshotMetadata,
+} from "./src/telemetry.mjs";
 import { createManagementAdapter } from "./adapter.mjs";
 const files = new Set([
   "index.html",
@@ -238,6 +241,7 @@ export function createServer({
     if (path === "/api/snapshot") {
       try {
         let records = [];
+        let telemetrySource = null;
         let telemetryStatus = "not-configured";
         if (snapshotPath) {
           try {
@@ -259,7 +263,9 @@ export function createServer({
             } finally {
               await input.close();
             }
-            records = normalizeRecords(JSON.parse(raw));
+            const snapshot = JSON.parse(raw);
+            records = normalizeRecords(snapshot);
+            telemetrySource = normalizeSnapshotMetadata(snapshot);
             telemetryStatus = "loaded";
           } catch {
             telemetryStatus = "unavailable";
@@ -287,6 +293,7 @@ export function createServer({
             checkedAt: new Date().toISOString(),
             records,
             telemetryStatus,
+            telemetrySource,
             management,
             panels,
             home: homeAdapter

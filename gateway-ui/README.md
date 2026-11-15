@@ -175,3 +175,29 @@ aggregates. An unavailable source displays unavailable, not zero. This does not
 include traffic the Home never recorded (such as the legacy proxy), prove full
 history, account balance or actual billing. Manual refresh re-queries the source;
 no background collector, queue consumer or automatic polling is introduced.
+
+## Sanitized persistent-history snapshot contract
+
+The prepared `panel-telemetry-v1.json` can be connected through the existing
+`GATEWAY_SNAPSHOT_PATH` server setting. Only read this dedicated sanitized file,
+never serve the installation directory or raw Home database/ledgers. This change
+does not run the collection helper, install a timer or change any service.
+
+The schema-1 envelope preserves sourceId, original collection time, first/last
+retained event time, retained count and truncation. Browser notices explicitly
+label a point-in-time historical snapshot; Refresh rereads the file and does not
+regenerate it. Server request time is not substituted for collection time.
+
+For the prepared contract, `provider` is billing origin while `executor_provider`
+is the technical executor channel. These are displayed separately. Billing
+attribution is declared by the sanitized source's join against current credential
+and guard configuration, not inferred from model names. It is not a billing
+statement, quota or account balance. Historical changes may need reconciliation.
+Canonical `event_id` is preserved exactly in a restricted field; duplicate valid
+canonical IDs fail the whole import rather than inflate totals. This remains a
+replacement snapshot, not an append/ingestion system. Unknown harness/client stays
+unknown. Cached tokens are not added again to the native total.
+
+Snapshot events, Home aggregates and API guard ledgers overlap. They must never be
+added together. With event records present Overview uses that event set; Home's
+24h aggregate is not added. Guard ledgers are not ingested by this change.

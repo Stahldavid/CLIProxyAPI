@@ -35,6 +35,32 @@ function clientFor(record) {
   return ["Unknown client", "unavailable"];
 }
 
+export function normalizeSnapshotMetadata(snapshot) {
+  if (!object(snapshot) || snapshot.schema !== 1 || !object(snapshot.coverage))
+    return null;
+  return {
+    kind: "sanitized-home-snapshot",
+    sourceId: label(snapshot.sourceId),
+    observedAt: time(snapshot.checkedAt),
+    firstEventAt: time(snapshot.coverage.firstEventAt),
+    lastEventAt: time(snapshot.coverage.lastEventAt),
+    retainedRecordCount: count(snapshot.coverage.retainedRecordCount),
+    truncated:
+      typeof snapshot.coverage.truncated === "boolean"
+        ? snapshot.coverage.truncated
+        : null,
+    refreshMode: "point-in-time-file",
+  };
+}
+const billingOrigins = new Set(["subscription", "openai_api", "azure_api"]);
+const canonicalEvent = (value) =>
+  typeof value === "string" &&
+  /^[a-z][a-z0-9-]{0,63}:usage:[0-9]{1,16}:\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d{1,9})?\+00:00$/.test(
+    value,
+  )
+    ? value
+    : null;
+
 export function normalizeRecords(snapshot) {
   const source = Array.isArray(snapshot)
     ? snapshot
@@ -47,19 +73,36 @@ export function normalizeRecords(snapshot) {
     throw new RangeError(`Snapshots are limited to ${MAX_RECORDS} records.`);
   if (source.some((record) => !object(record)))
     throw new TypeError("Every record must be an object.");
+  const eventIds = new Set();
   return source.map((record, index) => {
+    const sourceEventId = canonicalEvent(record.event_id);
+    if (sourceEventId && eventIds.has(sourceEventId))
+      throw new TypeError("Duplicate canonical event in snapshot.");
+    if (sourceEventId) eventIds.add(sourceEventId);
     const [client, clientEvidence] = clientFor(record);
     const tokens = object(record.tokens) ? record.tokens : {};
     const auth = label(record.auth_type);
     return {
       id: `event-${index + 1}`,
+      sourceEventId,
       timestamp: time(record.timestamp),
       client,
       clientEvidence,
       requestedModel: label(record.alias) || label(record.model),
       forwardedModel: label(record.model),
       responseModel: label(record.response_model),
-      provider: label(record.provider) || "Unknown provider",
+      provider:
+        label(record.executor_provider) ||
+        label(record.provider) ||
+        "Unknown provider",
+      billingOrigin:
+        record.executor_provider && billingOrigins.has(record.provider)
+          ? record.provider
+          : "unknown",
+      billingEvidence:
+        record.executor_provider && billingOrigins.has(record.provider)
+          ? "source-current-configuration"
+          : "unavailable",
       executor: label(record.executor_type) || "Unknown executor",
       account: label(record.account_label) || "Unidentified account",
       authMethod: auth || "Unknown",
@@ -140,6 +183,7 @@ export function summarize(records) {
     totalTokens:
       known.length && Number.isSafeInteger(tokenSum) ? tokenSum : null,
     providers: groups(records, "provider"),
+    billingOrigins: groups(records, "billingOrigin"),
     models: groups(records, "forwardedModel"),
     clients: groups(records, "client"),
     cost: null,

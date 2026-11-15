@@ -162,3 +162,18 @@ UI tests cover real-aggregate labels, timezone, totals and unavailable-not-zero.
 All 96 named tests pass. Live verification was attempted by the diagnostic worker
 but blocked by approval review before command execution; no bypass or live-data
 qualification is claimed. Installed services and credentials remain untouched.
+
+### Prepared persistent-history snapshot
+
+Read T3 run5's complete sanitized contract and its schema-1 snapshot from the WSL
+artifact directory. Materialized only that sanitized snapshot in the isolated
+workspace, not private keys, databases or ledgers. New normalizer and authenticated
+local HTTP endpoint verified 58 events, 54 successes, 4 failures, all 58 canonical
+IDs and timestamps, origins 51 subscription / 5 OpenAI API / 2 Azure API. Technical
+executor remains codex for all 58. Snapshot collected 2026-11-15T19:44:38.736729Z;
+event range 15:27:49.741191Z–18:41:30.075368Z. This is not a new live collection.
+
+Added provenance projection, distinct executor/billing attribution, strict IDs,
+duplicate rejection and explicit point-in-time coverage. All 100 named tests pass;
+formatting and diff checks pass. No raw user snapshot is committed to the repo.
+No helper, timer, queue consumer, service restart, network or credential change.

@@ -1,4 +1,8 @@
-import { normalizeRecords, summarize } from "./telemetry.mjs";
+import {
+  normalizeRecords,
+  summarize,
+  normalizeSnapshotMetadata,
+} from "./telemetry.mjs";
 import { demo } from "./demo.mjs";
 import { mountRouting } from "./routing-ui.mjs";
 import { mountAccountManagement } from "./management-ui.mjs";
@@ -54,6 +58,7 @@ let records = normalizeRecords(demo),
   status = "all",
   connection = null;
 let sourceRevision = 0;
+let telemetrySource = null;
 let infrastructure = { home: null, panels: {}, stale: false };
 const $ = (s) => document.querySelector(s),
   esc = (x) =>
@@ -108,6 +113,18 @@ function render() {
     .join("");
   $("#notice").innerHTML =
     `<div class="notice">${mode === "Demonstração" ? "Dados sintéticos para validar a interface. Nenhuma requisição real é enviada." : "Consulta/snapshot em memória. Dados podem estar desatualizados; não comprovam saldo nem disponibilidade do provedor."}</div>`;
+  if (telemetrySource) {
+    const sourceTime = (value) =>
+      value
+        ? new Intl.DateTimeFormat("pt-BR", {
+            dateStyle: "short",
+            timeStyle: "medium",
+            timeZone: "Asia/Jerusalem",
+          }).format(new Date(value))
+        : "Não informado";
+    $("#notice").innerHTML +=
+      `<div class="notice"><b>Snapshot histórico sanitizado · não é tempo real</b><p>Fonte: ${esc(telemetrySource.sourceId)} · coletado ${esc(sourceTime(telemetrySource.observedAt))} · Jerusalém</p><p>Eventos: ${esc(sourceTime(telemetrySource.firstEventAt))} até ${esc(sourceTime(telemetrySource.lastEventAt))}. ${records.length} carregados / ${esc(num(telemetrySource.retainedRecordCount))} retidos na fonte. Cobertura ${telemetrySource.truncated === true ? "PARCIAL: exportação truncada" : telemetrySource.truncated === false ? "do snapshot exportado, não vitalícia" : "não informada"}.</p><p>Atualizar fonte relê o arquivo; não regenera a coleta. Não somar estes eventos aos agregados Home ou ledgers sobrepostos. Saldo, quota atual e fatura permanecem desconhecidos.</p></div>`;
+  }
   const s = summarize(records);
   let html = "";
   if (page[0] === "overview") {
@@ -135,7 +152,30 @@ function render() {
       )
       .join(
         "",
-      )}</div><div class="grid">${panel("Distribuição por provedor", bars(s.providers), "Contagem de requisições, não disponibilidade do serviço.")}${panel("Aplicativos de origem", bars(s.clients), "Claude Code pode usar Codex. Os dois eixos são independentes.")}</div>${panel("Atribuição sem ambiguidades", `<div class="flow"><div class="node"><small>Aplicativo</small><b>Claude Code</b>Harness / cliente</div><span class="arrow">→</span><div class="node"><small>Gateway</small><b>Alias → modelo</b>Roteamento</div><span class="arrow">→</span><div class="node"><small>Executor</small><b>Codex</b>Conta de destino</div></div><p>Exemplo conceitual. OAuth não comprova plano, saldo nem cobrança. Custo monetário: não informado.</p>`)}`;
+      )}</div><div class="grid">${panel("Canal executor", bars(s.providers), "Contagem de requisições, não disponibilidade do serviço.")}${panel("Aplicativos de origem", bars(s.clients), "Claude Code pode usar Codex. Os dois eixos são independentes.")}</div>${panel("Atribuição sem ambiguidades", `<div class="flow"><div class="node"><small>Aplicativo</small><b>Claude Code</b>Harness / cliente</div><span class="arrow">→</span><div class="node"><small>Gateway</small><b>Alias → modelo</b>Roteamento</div><span class="arrow">→</span><div class="node"><small>Executor</small><b>Codex</b>Conta de destino</div></div><p>Exemplo conceitual. OAuth não comprova plano, saldo nem cobrança. Custo monetário: não informado.</p>`)}`;
+  }
+  if (
+    page[0] === "overview" &&
+    records.some(
+      (record) => record.billingOrigin !== "unknown" && record.billingOrigin,
+    )
+  ) {
+    const names = {
+      subscription: "Subscription Codex",
+      openai_api: "OpenAI API",
+      azure_api: "Azure API",
+      unknown: "Não identificado",
+    };
+    html += panel(
+      "Origem de cobrança declarada pela fonte",
+      bars(
+        s.billingOrigins.map((group) => ({
+          ...group,
+          name: names[group.name] ?? "Não identificado",
+        })),
+      ),
+      "Atribuição pelo vínculo da credencial com a configuração atual do guarda, não pelo modelo. Não é custo faturado nem saldo. Alterações históricas podem exigir reconciliação.",
+    );
   }
   if (
     page[0] === "overview" &&
@@ -402,6 +442,7 @@ function render() {
     $("#reset").onclick = () => {
       sourceRevision++;
       connection = null;
+      telemetrySource = null;
       records = normalizeRecords(demo);
       mode = "Demonstração";
       query = "";
@@ -412,6 +453,7 @@ function render() {
     $("#clear").onclick = () => {
       sourceRevision++;
       connection = null;
+      telemetrySource = null;
       records = [];
       mode = "Sessão vazia";
       render();
@@ -424,7 +466,22 @@ function details(r) {
     ["Modelo solicitado", r.requestedModel],
     ["Modelo encaminhado", r.forwardedModel],
     ["Modelo na resposta", r.responseModel],
-    ["Provedor", r.provider],
+    ["Canal executor", r.provider],
+    [
+      "Origem de cobrança",
+      {
+        subscription: "Subscription Codex",
+        openai_api: "OpenAI API",
+        azure_api: "Azure API",
+      }[r.billingOrigin] ?? "Não informado",
+    ],
+    [
+      "Evidência da origem",
+      r.billingEvidence === "source-current-configuration"
+        ? "Vínculo com configuração atual, informado pela fonte"
+        : "Não informada",
+    ],
+    ["Evento canônico", r.sourceEventId ?? "Não informado"],
     [
       "Executor",
       r.executor && r.executor !== "Unknown executor"
@@ -469,6 +526,7 @@ $("#file").onchange = async (e) => {
       throw new Error("Use um array ou um objeto com records.");
     const imported = normalizeRecords(data);
     connection = null;
+    telemetrySource = normalizeSnapshotMetadata(data);
     records = imported;
     mode = "Snapshot importado";
     query = "";
@@ -492,6 +550,7 @@ async function loadSource() {
     const incoming = await response.json();
     if (revision !== sourceRevision) return;
     connection = incoming;
+    telemetrySource = incoming.telemetrySource ?? null;
     infrastructure = {
       home: incoming.home ?? null,
       panels: incoming.panels ?? {},
