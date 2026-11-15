@@ -113,3 +113,13 @@ no longer asserted from this console's unrelated local configuration.
 Repeated refresh tests cover all three empty/unavailable states and restoration
 of native panel links. All 89 named tests pass; formatting and diff checks pass.
 No installed service or remote configuration was changed.
+
+### Independent infrastructure state
+
+Home/native-panel state is now independent from imported or cleared telemetry.
+Changing a telemetry snapshot no longer silently removes HMC access. A failed
+refresh retains the last Home observation but explicitly marks it stale; recovery
+clears that warning. Additional native links cover access keys, quotas, plugins,
+logs and diagnostics, checked against HMC route files. Regression assertions cover
+failed refresh/recovery, clearing telemetry and importing a snapshot while keeping
+Home/native navigation. All 89 named tests and formatting checks pass.

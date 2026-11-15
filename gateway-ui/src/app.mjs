@@ -54,6 +54,7 @@ let records = normalizeRecords(demo),
   status = "all",
   connection = null;
 let sourceRevision = 0;
+let infrastructure = { home: null, panels: {}, stale: false };
 const $ = (s) => document.querySelector(s),
   esc = (x) =>
     String(x ?? "Não informado").replace(
@@ -231,13 +232,14 @@ function render() {
   if (page[0] === "security")
     html = `<div class="grid">${panel("Proteções do console", `<dl><dt>Credenciais</dt><dd>Token administrativo permanece no servidor; senha do console é solicitada no modo conectado</dd><dt>Prompts e respostas</dt><dd>Não exibidos</dd><dt>Conexões do navegador</dt><dd>Somente este servidor local</dd><dt>Armazenamento</dt><dd>Exibição em memória da aba; coletor opcional grava histórico sanitizado no servidor</dd></dl>`)}${panel("Integrações", `<p>Esta tela não consulta o estado global do Infisical ou Executor. O laboratório demonstra integrações simuladas, não comprova configuração de produção.</p>${tag("Não conectado", "gray")}<p>Este servidor é somente local. Não publique nem exponha por túnel.</p>`)}</div>${panel("Importação segura", "<p>O importador aceita até 5 MB de JSON, seleciona campos de telemetria e descarta campos não permitidos. Não importe arquivos de credenciais. Rótulos livres ainda podem conter dados pessoais: revise o arquivo antes de compartilhar.</p>")}`;
   if (page[0] === "infrastructure") {
-    const home = connection?.home;
-    const homeStatus =
-      {
-        connected: "Conectado · somente leitura",
-        unavailable: "Home indisponível",
-        "not-configured": "Home não conectado",
-      }[home?.status] ?? "Consulta ainda não realizada";
+    const home = infrastructure.home;
+    const homeStatus = infrastructure.stale
+      ? "Última leitura · atualização falhou"
+      : ({
+          connected: "Conectado · somente leitura",
+          unavailable: "Home indisponível",
+          "not-configured": "Home não conectado",
+        }[home?.status] ?? "Consulta ainda não realizada");
     const checked =
       home?.checkedAt && Number.isFinite(Date.parse(home.checkedAt))
         ? new Intl.DateTimeFormat("pt-BR", {
@@ -269,28 +271,33 @@ function render() {
         )
       : `<div class="empty"><b>${home?.status === "connected" ? "Nenhum nó retornado pelo Home" : "Sem inventário disponível"}</b><p>${home?.status === "connected" ? "A consulta foi concluída, mas não retornou nós. Verifique o cadastro no HMC; não confunda lista vazia com falha de inferência." : home?.status === "unavailable" ? "Confira conectividade e autenticação no servidor do console. Não cole tokens aqui. A ausência de dados não comprova que os nós estejam desligados." : "Conecte a fonte Home no servidor para consultar os nós. O console nunca inventa nomes, saúde ou endereços."}</p></div>`;
     html = `${panel("Como este ambiente se conecta", '<div class="architecture"><span>Harness<small>Codex · OpenCode · Claude Code</small></span><b>→</b><span>Seletor<small>Escolha PC / VM</small></span><b>→</b><span>CPA<small>Executa a requisição</small></span><b>→</b><span>Provedor<small>Subscription ou API</small></span></div><p>O Home coordena credenciais e configuração dos CPAs. O HMC administra o Home. O console visualiza; não substitui nem altera esse caminho.</p>')}
-    <div class="grid">${panel("Home · plano de controle", `${tag(homeStatus, home?.status === "connected" ? "green" : "gray")}<p>${esc(checked)}</p><button id="refresh">Atualizar fonte</button><p>Credenciais, renovação e configuração são administradas no HMC, não nesta tela.</p>`)}${panel("CPAs · execução", `${nodesBody}<p>Saúde reportada não comprova inferência nem fallback. Rótulos anônimos são posicionais, não identidades estáveis.</p>`)}</div>
+    <div class="grid">${panel("Home · plano de controle", `${tag(homeStatus, home?.status === "connected" && !infrastructure.stale ? "green" : "gray")}<p>${esc(checked)}</p><button id="refresh">Atualizar fonte</button><p>Credenciais, renovação e configuração são administradas no HMC, não nesta tela.</p>`)}${panel("CPAs · execução", `${nodesBody}<p>${infrastructure.stale ? "Atenção: dados da última leitura, atualização falhou. " : ""}Saúde reportada não comprova inferência nem fallback. Rótulos anônimos são posicionais, não identidades estáveis.</p>`)}</div>
     <div class="grid">${panel(
       "HMC completo · painel oficial",
       links(
-        connection?.panels?.home,
+        infrastructure.panels?.home,
         [
           ["Dashboard", "/management.html#/admin/dashboard"],
           ["Contas · OAuth · APIs", "/management.html#/admin/upstream"],
           ["Nós e sistema", "/management.html#/admin/system-nodes"],
           ["Uso", "/management.html#/admin/usage"],
+          ["Chaves de acesso", "/management.html#/admin/access-keys"],
+          ["Quotas", "/management.html#/admin/quota"],
+          ["Plugins", "/management.html#/admin/plugins"],
+          ["Logs", "/management.html#/admin/logs"],
+          ["Diagnósticos", "/management.html#/admin/diagnostics"],
           ["Configuração e demais recursos", "/management.html#/admin/config"],
         ],
         "GATEWAY_HOME_PANEL_ORIGIN",
       ),
       "Abre em outra aba com autenticação própria. Nenhum token no link.",
-    )}${panel("CPA · painel nativo", links(connection?.panels?.cpa, [["Abrir painel completo", "/management.html"]], "GATEWAY_CPA_PANEL_ORIGIN"), "Acesso opcional ao painel de um CPA. O HMC acima permanece a administração central do Home.")}</div>
+    )}${panel("CPA · painel nativo", links(infrastructure.panels?.cpa, [["Abrir painel completo", "/management.html"]], "GATEWAY_CPA_PANEL_ORIGIN"), "Acesso opcional ao painel de um CPA. O HMC acima permanece a administração central do Home.")}</div>
     ${panel("O que está integrado, sem perder recursos", "<p><b>Neste console:</b> saúde e clientes dos nós Home, telemetria CPA opcional e atribuição por harness/provedor.</p><p><b>No HMC completo:</b> OAuth, renovação, quotas, certificados, plugins, logs e administração. Nenhuma função nativa foi removida.</p><p>WebSocket, fallback, cobrança e disponibilidade real exigem evidências de execução. A consulta não consome a fila de uso. Este console ainda não oferece paridade visual integral com o HMC.</p>")}`;
   }
   if (page[0] === "settings")
     html = panel(
       "Sessão local",
-      `<div class="settings-row split"><div><b>Adaptador administrativo</b><p>${esc(connection?.management?.status ?? "Não consultado")} · Telemetria: ${esc(connection?.telemetryStatus ?? "Não consultada")}</p><small>Última consulta: ${esc(connection?.checkedAt)}</small></div><button id="refresh">Atualizar fonte</button></div><div class="settings-row split"><div><b>Fonte atual</b><p>${esc(mode)} · ${records.length} registros</p></div><button id="reset">Restaurar demonstração</button></div><div class="settings-row split"><div><b>Limpar dados</b><p>Remove o conjunto da memória desta aba.</p></div><button id="clear">Limpar sessão</button></div><div class="settings-row"><b>Ambiente</b><p>Standalone · Adaptador v8 somente leitura · Sem API de inferência</p></div><div class="settings-row"><b>Produção permanece intocada</b><p>Alterações de estado de contas só ficam disponíveis com habilitação explícita no servidor e confirmação individual abaixo. Nenhum token administrativo é solicitado pelo navegador.</p></div>`,
+      `<div class="settings-row split"><div><b>Adaptador administrativo</b><p>${esc(connection?.management?.status ?? "Não consultado")} · Telemetria: ${esc(connection?.telemetryStatus ?? "Não consultada")}</p><small>Última consulta: ${esc(connection?.checkedAt)}</small></div><button id="refresh">Atualizar fonte</button></div><div class="settings-row split"><div><b>Fonte atual</b><p>${esc(mode)} · ${records.length} registros</p></div><button id="reset">Restaurar demonstração</button></div><div class="settings-row split"><div><b>Limpar telemetria</b><p>Remove os registros desta aba; preserva a última leitura Home e os acessos nativos.</p></div><button id="clear">Limpar sessão</button></div><div class="settings-row"><b>Ambiente</b><p>Standalone · Adaptador v8 somente leitura · Sem API de inferência</p></div><div class="settings-row"><b>Produção permanece intocada</b><p>Alterações de estado de contas só ficam disponíveis com habilitação explícita no servidor e confirmação individual abaixo. Nenhum token administrativo é solicitado pelo navegador.</p></div>`,
     );
   $("#content").innerHTML = html;
   if (page[0] === "settings") mountAccountManagement($("#content"));
@@ -443,6 +450,11 @@ async function loadSource() {
     const incoming = await response.json();
     if (revision !== sourceRevision) return;
     connection = incoming;
+    infrastructure = {
+      home: incoming.home ?? null,
+      panels: incoming.panels ?? {},
+      stale: false,
+    };
     if (connection.mode !== "demo") {
       records = connection.records;
       mode = "Fonte administrativa · leitura";
@@ -459,6 +471,8 @@ async function loadSource() {
   } catch {
     if (revision !== sourceRevision) return;
     connection = null;
+    infrastructure = { ...infrastructure, stale: true };
+    render();
     $("#notice").textContent =
       "Não foi possível consultar a fonte local. O conjunto anterior foi preservado.";
   }

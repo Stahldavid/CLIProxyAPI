@@ -65,6 +65,22 @@ test("9 screens, navigation, safe imports, filters, simulation, clear and reset"
   assert.equal(native.getAttribute("rel"), "noopener noreferrer");
   assert.equal(native.getAttribute("target"), "_blank");
   const initialFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    throw new Error("offline");
+  };
+  $("#refresh").click();
+  await new Promise((r) => setTimeout(r, 0));
+  assert.match(
+    $("#content").textContent,
+    /Última leitura · atualização falhou/,
+  );
+  assert.match($("#content").textContent, /CPA 1/);
+  assert.ok(document.querySelector('#content a[href*="management.html"]'));
+  globalThis.fetch = initialFetch;
+  $("#refresh").click();
+  await new Promise((r) => setTimeout(r, 0));
+  assert.doesNotMatch($("#content").textContent, /atualização falhou/);
+
   for (const [state, expected] of [
     ["connected", "Nenhum nó retornado"],
     ["unavailable", "Sem inventário disponível"],
@@ -108,6 +124,10 @@ test("9 screens, navigation, safe imports, filters, simulation, clear and reset"
   navigate("settings");
   $("#clear").click();
   assert.equal($("#mode").textContent, "Sessão vazia");
+  navigate("infrastructure");
+  assert.match($("#content").textContent, /CPA 1/);
+  assert.ok(document.querySelector('#content a[href*="management.html"]'));
+  navigate("settings");
   $("#reset").click();
   assert.equal($("#mode").textContent, "Demonstração");
   const file = $("#file");
@@ -129,6 +149,9 @@ test("9 screens, navigation, safe imports, filters, simulation, clear and reset"
   Object.defineProperty(file, "files", { configurable: true, value: [safe] });
   await file.onchange({ target: file });
   assert.equal($("#mode").textContent, "Snapshot importado");
+  navigate("infrastructure");
+  assert.match($("#content").textContent, /CPA 1/);
+  assert.ok(document.querySelector('#content a[href*="management.html"]'));
   navigate("activity");
   assert.equal(document.querySelectorAll("#rows img").length, 0);
   assert.ok(!document.body.textContent.includes("PRIVATE_SENTINEL"));
