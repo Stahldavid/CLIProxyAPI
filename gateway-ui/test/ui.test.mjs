@@ -15,6 +15,7 @@ test("9 screens, navigation, safe imports, filters, simulation, clear and reset"
     json: async () => ({
       mode: "demo",
       home: {
+        checkedAt: "2026-11-15T12:00:00Z",
         status: "connected",
         nodes: [{ label: "CPA 1", healthy: true, clients: 2 }],
       },
@@ -63,6 +64,35 @@ test("9 screens, navigation, safe imports, filters, simulation, clear and reset"
   const native = document.querySelector('#content a[href*="management.html"]');
   assert.equal(native.getAttribute("rel"), "noopener noreferrer");
   assert.equal(native.getAttribute("target"), "_blank");
+  const initialFetch = globalThis.fetch;
+  for (const [state, expected] of [
+    ["connected", "Nenhum nó retornado"],
+    ["unavailable", "Sem inventário disponível"],
+    ["not-configured", "Sem inventário disponível"],
+  ]) {
+    globalThis.fetch = async () => ({
+      ok: true,
+      json: async () => ({
+        mode: "demo",
+        management: { status: "not-configured" },
+        home: { status: state, nodes: [] },
+        panels: {},
+      }),
+    });
+    $("#refresh").click();
+    await new Promise((r) => setTimeout(r, 0));
+    assert.match($("#content").textContent, new RegExp(expected));
+    assert.match($("#content").textContent, /GATEWAY_CPA_PANEL_ORIGIN/);
+    assert.match($("#content").textContent, /Ainda sem consulta concluída/);
+    assert.equal(
+      document.querySelectorAll('#content a[target="_blank"]').length,
+      0,
+    );
+  }
+  globalThis.fetch = initialFetch;
+  $("#refresh").click();
+  await new Promise((r) => setTimeout(r, 0));
+
   navigate("routes");
   $("#route").value = "1";
   $("#simulate").click();

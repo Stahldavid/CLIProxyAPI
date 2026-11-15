@@ -229,43 +229,63 @@ function render() {
       `<div class="filters"><input type="search" id="search" aria-label="Buscar requisições" placeholder="Cliente, modelo ou provedor…" value="${esc(query)}"><select id="status" aria-label="Filtrar resultado"><option value="all">Todos os resultados</option><option value="success">Sucesso</option><option value="failed">Falha</option><option value="unknown">Não informado</option></select></div><div id="rows"></div>`,
     );
   if (page[0] === "security")
-    html = `<div class="grid">${panel("Proteções do console", `<dl><dt>Credenciais</dt><dd>Token administrativo permanece no servidor; senha do console é solicitada no modo conectado</dd><dt>Prompts e respostas</dt><dd>Não exibidos</dd><dt>Conexões do navegador</dt><dd>Somente este servidor local</dd><dt>Armazenamento</dt><dd>Exibição em memória da aba; coletor opcional grava histórico sanitizado no servidor</dd></dl>`)}${panel("Integrações", `<p>Infisical, Executor e autenticação de produção não estão configurados.</p>${tag("Não conectado", "gray")}<p>Este servidor é somente local. Não publique nem exponha por túnel.</p>`)}</div>${panel("Importação segura", "<p>O importador aceita até 5 MB de JSON, seleciona campos de telemetria e descarta campos não permitidos. Não importe arquivos de credenciais. Rótulos livres ainda podem conter dados pessoais: revise o arquivo antes de compartilhar.</p>")}`;
+    html = `<div class="grid">${panel("Proteções do console", `<dl><dt>Credenciais</dt><dd>Token administrativo permanece no servidor; senha do console é solicitada no modo conectado</dd><dt>Prompts e respostas</dt><dd>Não exibidos</dd><dt>Conexões do navegador</dt><dd>Somente este servidor local</dd><dt>Armazenamento</dt><dd>Exibição em memória da aba; coletor opcional grava histórico sanitizado no servidor</dd></dl>`)}${panel("Integrações", `<p>Esta tela não consulta o estado global do Infisical ou Executor. O laboratório demonstra integrações simuladas, não comprova configuração de produção.</p>${tag("Não conectado", "gray")}<p>Este servidor é somente local. Não publique nem exponha por túnel.</p>`)}</div>${panel("Importação segura", "<p>O importador aceita até 5 MB de JSON, seleciona campos de telemetria e descarta campos não permitidos. Não importe arquivos de credenciais. Rótulos livres ainda podem conter dados pessoais: revise o arquivo antes de compartilhar.</p>")}`;
   if (page[0] === "infrastructure") {
     const home = connection?.home;
-    const links = (origin, entries) =>
+    const homeStatus =
+      {
+        connected: "Conectado · somente leitura",
+        unavailable: "Home indisponível",
+        "not-configured": "Home não conectado",
+      }[home?.status] ?? "Consulta ainda não realizada";
+    const checked =
+      home?.checkedAt && Number.isFinite(Date.parse(home.checkedAt))
+        ? new Intl.DateTimeFormat("pt-BR", {
+            dateStyle: "short",
+            timeStyle: "medium",
+            timeZone: "Asia/Jerusalem",
+          }).format(new Date(home.checkedAt)) + " · Jerusalém"
+        : "Ainda sem consulta concluída";
+    const links = (origin, entries, variable) =>
       origin
-        ? entries
-            .map(
-              ([label, path]) =>
-                `<p><a href="${esc(origin + path)}" target="_blank" rel="noopener noreferrer">${esc(label)} ↗</a></p>`,
-            )
-            .join("")
-        : "<p>Origem do painel não configurada. Nenhum endereço presumido.</p>";
-    html = `<div class="grid">${panel("Home · plano de controle", `<p>Credenciais, renovação e distribuição de configuração. Não é o endpoint de inferência.</p>${tag(home?.status ?? "not-configured")}<p>Consulta: ${esc(home?.checkedAt)}</p><button id="refresh">Atualizar fonte</button>`)}${panel(
-      "CPAs · execução",
-      `<p>Os nós executam requisições; o seletor escolhe o caminho. Saúde do nó não comprova inferência nem fallback.</p>${table(
-        ["Nó anonimizado", "Saúde reportada", "Clientes"],
-        (home?.nodes ?? []).map((n) => [
-          esc(n.label),
-          n.healthy === true
-            ? "Saudável"
-            : n.healthy === false
-              ? "Não saudável"
-              : "Não informada",
-          num(n.clients),
-        ]),
-      )}<p>Identidades, endereços e segredos não são copiados para o navegador.</p>`,
-    )}</div><div class="grid">${panel(
+        ? `<div class="native-links">${entries.map(([label, path]) => `<a href="${esc(origin + path)}" target="_blank" rel="noopener noreferrer">${esc(label)} <span aria-hidden="true">↗</span></a>`).join("")}</div>`
+        : `<div class="empty"><b>Acesso direto ainda não configurado</b><p>Configure ${esc(variable)} com a origem acessível neste navegador. Não use o localhost de outra máquina.</p><p>Isso não significa que o serviço esteja desligado. O painel continua disponível pelo endereço que você já utiliza.</p></div>`;
+    const nodes = home?.nodes ?? [];
+    const nodesBody = nodes.length
+      ? table(
+          ["Nó anonimizado", "Saúde reportada", "Clientes"],
+          nodes.map((n) => [
+            esc(n.label),
+            tag(
+              n.healthy === true
+                ? "Saudável"
+                : n.healthy === false
+                  ? "Não saudável"
+                  : "Não informada",
+              n.healthy === true ? "green" : "gray",
+            ),
+            num(n.clients),
+          ]),
+        )
+      : `<div class="empty"><b>${home?.status === "connected" ? "Nenhum nó retornado pelo Home" : "Sem inventário disponível"}</b><p>${home?.status === "connected" ? "A consulta foi concluída, mas não retornou nós. Verifique o cadastro no HMC; não confunda lista vazia com falha de inferência." : home?.status === "unavailable" ? "Confira conectividade e autenticação no servidor do console. Não cole tokens aqui. A ausência de dados não comprova que os nós estejam desligados." : "Conecte a fonte Home no servidor para consultar os nós. O console nunca inventa nomes, saúde ou endereços."}</p></div>`;
+    html = `${panel("Como este ambiente se conecta", '<div class="architecture"><span>Harness<small>Codex · OpenCode · Claude Code</small></span><b>→</b><span>Seletor<small>Escolha PC / VM</small></span><b>→</b><span>CPA<small>Executa a requisição</small></span><b>→</b><span>Provedor<small>Subscription ou API</small></span></div><p>O Home coordena credenciais e configuração dos CPAs. O HMC administra o Home. O console visualiza; não substitui nem altera esse caminho.</p>')}
+    <div class="grid">${panel("Home · plano de controle", `${tag(homeStatus, home?.status === "connected" ? "green" : "gray")}<p>${esc(checked)}</p><button id="refresh">Atualizar fonte</button><p>Credenciais, renovação e configuração são administradas no HMC, não nesta tela.</p>`)}${panel("CPAs · execução", `${nodesBody}<p>Saúde reportada não comprova inferência nem fallback. Rótulos anônimos são posicionais, não identidades estáveis.</p>`)}</div>
+    <div class="grid">${panel(
       "HMC completo · painel oficial",
-      links(connection?.panels?.home, [
-        ["Dashboard", "/management.html#/admin/dashboard"],
-        ["Upstream / OAuth / APIs", "/management.html#/admin/upstream"],
-        ["Nós e sistema", "/management.html#/admin/system-nodes"],
-        ["Uso", "/management.html#/admin/usage"],
-        ["Configuração e demais recursos", "/management.html#/admin/config"],
-      ]),
-      "Abre em outra aba, com autenticação própria. Nenhum token é anexado ao link.",
-    )}${panel("CPA · painel nativo", links(connection?.panels?.cpa, [["Abrir painel nativo", "/management.html"]]), "Todas as funções originais permanecem disponíveis; este console não as substitui.")}</div>${panel("Cobertura e limites", "<p>Integrado aqui: leitura sanitizada de saúde e número de clientes dos nós Home, além da telemetria CPA opcional. OAuth, renovação, quotas, certificados, plugins, logs e administração completa continuam no HMC nativo.</p><p>WebSocket, seleção PC/VM, cobrança e disponibilidade real precisam de evidência de execução. Não são inferidos deste inventário. A consulta não altera o Home nem consome a fila de uso.</p>")}`;
+      links(
+        connection?.panels?.home,
+        [
+          ["Dashboard", "/management.html#/admin/dashboard"],
+          ["Contas · OAuth · APIs", "/management.html#/admin/upstream"],
+          ["Nós e sistema", "/management.html#/admin/system-nodes"],
+          ["Uso", "/management.html#/admin/usage"],
+          ["Configuração e demais recursos", "/management.html#/admin/config"],
+        ],
+        "GATEWAY_HOME_PANEL_ORIGIN",
+      ),
+      "Abre em outra aba com autenticação própria. Nenhum token no link.",
+    )}${panel("CPA · painel nativo", links(connection?.panels?.cpa, [["Abrir painel completo", "/management.html"]], "GATEWAY_CPA_PANEL_ORIGIN"), "Acesso opcional ao painel de um CPA. O HMC acima permanece a administração central do Home.")}</div>
+    ${panel("O que está integrado, sem perder recursos", "<p><b>Neste console:</b> saúde e clientes dos nós Home, telemetria CPA opcional e atribuição por harness/provedor.</p><p><b>No HMC completo:</b> OAuth, renovação, quotas, certificados, plugins, logs e administração. Nenhuma função nativa foi removida.</p><p>WebSocket, fallback, cobrança e disponibilidade real exigem evidências de execução. A consulta não consome a fila de uso. Este console ainda não oferece paridade visual integral com o HMC.</p>")}`;
   }
   if (page[0] === "settings")
     html = panel(
@@ -431,7 +451,8 @@ async function loadSource() {
     if (
       connection.management.status === "disconnected" ||
       connection.management.status === "partial" ||
-      connection.telemetryStatus === "unavailable"
+      connection.telemetryStatus === "unavailable" ||
+      connection.home?.status === "unavailable"
     )
       $("#notice").textContent =
         "Fonte parcialmente indisponível. Dados ausentes não representam zero; confira a configuração local.";

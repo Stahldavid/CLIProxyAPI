@@ -101,3 +101,15 @@ After the executor loopback was inaccessible from CUA, the same demo server was 
   actual authenticated browser navigation remain deployment qualification tasks.
 - No native functionality removed. This does not claim complete visual embedding
   or feature parity with HMC; its native interface remains the authoritative UI.
+
+### Home workspace UX follow-up
+
+Status labels are localized; timestamps display explicitly in Asia/Jerusalem.
+Empty inventory, unreachable Home, and unconfigured Home are distinct states.
+Missing CPA-panel origin now explains the server setting and browser-localhost
+constraint rather than implying the CPA is down. Added a responsive architecture
+strip and clearer native panel actions. The global Infisical/Executor status is
+no longer asserted from this console's unrelated local configuration.
+Repeated refresh tests cover all three empty/unavailable states and restoration
+of native panel links. All 89 named tests pass; formatting and diff checks pass.
+No installed service or remote configuration was changed.
