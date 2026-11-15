@@ -345,23 +345,27 @@ $("#import").onclick = () => $("#file").click();
 $("#file").onchange = async (e) => {
   const file = e.target.files[0];
   if (!file) return;
+  const revision = ++sourceRevision;
   try {
     if (file.size > 5 * 1024 * 1024) throw new Error("Arquivo maior que 5 MB.");
-    const data = JSON.parse(await file.text());
+    const contents = await file.text();
+    if (revision !== sourceRevision) return;
+    const data = JSON.parse(contents);
     if (!Array.isArray(data) && !Array.isArray(data?.records))
       throw new Error("Use um array ou um objeto com records.");
-    sourceRevision++;
+    const imported = normalizeRecords(data);
     connection = null;
-    records = normalizeRecords(data);
+    records = imported;
     mode = "Snapshot importado";
     query = "";
     status = "all";
     render();
   } catch (error) {
+    if (revision !== sourceRevision) return;
     $("#notice").textContent =
       "Importação recusada. Use um JSON válido com records, até 5 MB e 10.000 registros. O conjunto anterior foi preservado.";
   } finally {
-    e.target.value = "";
+    if (revision === sourceRevision) e.target.value = "";
   }
 };
 render();

@@ -129,6 +129,34 @@ test("8 screens, navigation, safe imports, filters, simulation, clear and reset"
   assert.match($("#mode").textContent, /administrativa/);
   assert.ok(!$("#content").textContent.includes("48"));
   navigate("settings");
+  // Invalid normalized data must preserve the connected inventory.
+  Object.defineProperty(file, "files", {
+    configurable: true,
+    value: [{ size: 20, text: async () => '{"records":[null]}' }],
+  });
+  await file.onchange({ target: file });
+  navigate("accounts");
+  assert.match($("#content").textContent, /Account 1/);
+  navigate("settings");
+  // A slow import must not undo a later explicit clear.
+  let finishImport;
+  Object.defineProperty(file, "files", {
+    configurable: true,
+    value: [
+      {
+        size: 20,
+        text: () =>
+          new Promise((r) => {
+            finishImport = r;
+          }),
+      },
+    ],
+  });
+  const importing = file.onchange({ target: file });
+  $("#clear").click();
+  finishImport('{"records":[{"provider":"stale-import"}]}');
+  await importing;
+  assert.equal($("#mode").textContent, "Sessão vazia");
   let resolveFetch;
   globalThis.fetch = () =>
     new Promise((resolve) => {
