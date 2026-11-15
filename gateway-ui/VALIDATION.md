@@ -130,3 +130,12 @@ Below 720px, architecture nodes now stack vertically at full width and connector
 point downward. The desktop layout is unchanged. CSSOM regression verifies the
 mobile media rule and connector transform. All 90 named tests, formatting and
 diff checks pass. Actual 390x844 visual QA is performed separately by the caller.
+
+### Approved private-host boundary
+
+Added exact opt-in origin workspace-01.tail61573a.ts.net:10006 over HTTPS with
+mandatory console authentication. Native HTTP tests preserve wire Host headers
+and verify accepted origin, no-password challenge, denial of other ports/hosts,
+HTTP origin, cross-site/same-site, null Origin and spoofed forwarded headers.
+Local-origin behavior remains covered. All 93 named tests and formatting checks
+pass. No TLS route, network, firewall, ACL or installed service was changed here.

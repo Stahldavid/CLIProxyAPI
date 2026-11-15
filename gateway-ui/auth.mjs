@@ -44,10 +44,13 @@ export function createConsoleAuth({
 }
 
 /** Reject browser cross-site access even when a browser caches Basic credentials. */
-export function isSameOriginRequest(req) {
+export function isSameOriginRequest(
+  req,
+  expectedOrigin = `http://${req.headers.host}`,
+) {
   const site = req.headers["sec-fetch-site"];
   if (site && site !== "same-origin" && site !== "none") return false;
   const origin = req.headers.origin;
-  if (origin && origin !== `http://${req.headers.host}`) return false;
+  if (origin && origin !== expectedOrigin) return false;
   return true;
 }

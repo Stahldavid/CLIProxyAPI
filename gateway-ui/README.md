@@ -142,3 +142,19 @@ Funnel, firewall changes or deployment. In particular do not append it to an
 existing public Funnel endpoint. A distinct private route requires security
 review and authorization. Native links being configured does not expose the
 console or establish remote authentication.
+
+## Explicitly approved private origin
+
+The sole approved remote origin can be enabled with
+`GATEWAY_PRIVATE_ORIGIN=https://workspace-01.tail61573a.ts.net:10006`.
+Any other value fails startup. Without this opt-in, non-local Host headers remain
+rejected. The opt-in requires a separate console password even in demo mode.
+
+The listener still binds 127.0.0.1. TLS must terminate at the separately authorized
+private Serve route; no network, Serve, Funnel or firewall configuration is made
+by this application. The reverse proxy must preserve the exact approved Host
+including port. HTTPS Origin must match exactly; cross-site/same-site browser
+requests remain rejected. Forwarded headers are not trusted to widen access.
+Local HTTP origins remain supported for local administration. Do not expose via
+public Funnel or any other hostname/port. This narrow exception supersedes the
+blanket remote-access prohibition above only for that explicitly approved origin.

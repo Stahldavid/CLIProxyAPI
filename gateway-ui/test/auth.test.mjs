@@ -1,3 +1,4 @@
+import http from "node:http";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createConsoleAuth } from "../auth.mjs";
@@ -91,4 +92,116 @@ test("UTF-8 password byte limit prevents valid setup producing an unusable Basic
   const authorization = `Basic ${Buffer.from(`gateway:${password}`).toString("base64")}`;
   assert.ok(authorization.length <= 2048);
   assert.equal(check({ headers: { authorization } }), true);
+});
+
+// Native http preserves the explicit Host header for reverse-proxy regression tests.
+function wireRequest(url, options = {}) {
+  return new Promise((resolve, reject) => {
+    const req = http.request(url, options, (res) => {
+      res.resume();
+      res.on("end", () => resolve({ status: res.statusCode }));
+    });
+    req.on("error", reject);
+    req.end();
+  });
+}
+
+test("private origin opt-in is exact and requires console authentication", () => {
+  for (const privateOrigin of [
+    "https://evil.example",
+    "https://workspace-01.tail61573a.ts.net",
+    "https://workspace-01.tail61573a.ts.net:10005",
+    "http://workspace-01.tail61573a.ts.net:10006",
+  ])
+    assert.throws(
+      () => createServer({ privateOrigin, consolePassword: password }),
+      /approved/,
+    );
+  assert.throws(
+    () =>
+      createServer({
+        privateOrigin: "https://workspace-01.tail61573a.ts.net:10006",
+      }),
+    /requires/,
+  );
+});
+
+test("private Host accepts only approved host and port, authenticates and enforces HTTPS same-origin", async () => {
+  const privateOrigin = "https://workspace-01.tail61573a.ts.net:10006";
+  const privateHost = "workspace-01.tail61573a.ts.net:10006";
+  const server = createServer({ privateOrigin, consolePassword: password });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const url = `http://127.0.0.1:${server.address().port}/api/snapshot`;
+  try {
+    const request = (extra) =>
+      wireRequest(url, {
+        headers: { Host: privateHost, authorization, ...extra },
+      });
+    assert.equal(
+      (await wireRequest(url, { headers: { Host: privateHost } })).status,
+      401,
+    );
+    assert.equal(
+      (
+        await request({
+          Origin: privateOrigin,
+          "Sec-Fetch-Site": "same-origin",
+        })
+      ).status,
+      200,
+    );
+    for (const extra of [
+      { Host: "workspace-01.tail61573a.ts.net" },
+      { Host: "workspace-01.tail61573a.ts.net:443" },
+      { Host: "workspace-01.tail61573a.ts.net:10005" },
+      { Host: "evil.workspace-01.tail61573a.ts.net:10006" },
+      { Host: "workspace-01.tail61573a.ts.net.evil.example:10006" },
+      { Origin: "http://" + privateHost },
+      { Origin: "https://workspace-01.tail61573a.ts.net:10005" },
+      { Origin: "https://evil.example" },
+      { Origin: "null" },
+      { "Sec-Fetch-Site": "cross-site" },
+      { "Sec-Fetch-Site": "same-site" },
+      {
+        Host: "evil.example",
+        "X-Forwarded-Host": privateHost,
+        "X-Forwarded-Proto": "https",
+      },
+      {
+        Origin: "https://evil.example",
+        "X-Forwarded-Host": privateHost,
+        "X-Forwarded-Proto": "https",
+      },
+    ])
+      assert.equal((await request(extra)).status, 403, JSON.stringify(extra));
+    assert.equal(
+      (
+        await wireRequest(url, {
+          headers: { authorization, Origin: new URL(url).origin },
+        })
+      ).status,
+      200,
+    );
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test("private host remains denied when private origin is not explicitly configured", async () => {
+  const server = createServer({ consolePassword: password });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  try {
+    const response = await wireRequest(
+      `http://127.0.0.1:${server.address().port}/`,
+      {
+        headers: {
+          Host: "workspace-01.tail61573a.ts.net:10006",
+          authorization,
+        },
+      },
+    );
+    assert.equal(response.status, 403);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
 });

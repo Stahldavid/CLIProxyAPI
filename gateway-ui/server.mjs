@@ -20,7 +20,10 @@ const files = new Set([
   "management-ui.mjs",
   "routing-ui.mjs",
 ]);
+const APPROVED_PRIVATE_ORIGIN = "https://workspace-01.tail61573a.ts.net:10006";
+
 export function createServer({
+  privateOrigin = null,
   homeAdapter = null,
   homeToken = null,
   homePanelOrigin = null,
@@ -33,6 +36,11 @@ export function createServer({
   consolePassword = null,
   managementToken = null,
 } = {}) {
+  if (privateOrigin !== null && privateOrigin !== APPROVED_PRIVATE_ORIGIN)
+    throw new TypeError(
+      "Only the explicitly approved private origin is permitted.",
+    );
+  const privateHost = privateOrigin ? new URL(privateOrigin).host : null;
   const panels = {
     home: panelOrigin(homePanelOrigin),
     cpa: panelOrigin(cpaPanelOrigin),
@@ -52,7 +60,12 @@ export function createServer({
   const authorized = createConsoleAuth({
     password: consolePassword,
     required: Boolean(
-      homeAdapter || adapter || snapshotPath || statusManager || routingManager,
+      privateOrigin ||
+      homeAdapter ||
+      adapter ||
+      snapshotPath ||
+      statusManager ||
+      routingManager,
     ),
     managementToken,
   });
@@ -65,12 +78,18 @@ export function createServer({
       "Cache-Control": "no-store",
     };
     const host = req.headers.host ?? "";
-    if (!/^(127\.0\.0\.1|localhost)(:\d+)?$/.test(host)) {
+    const privateRequest = privateHost !== null && host === privateHost;
+    if (!/^(127\.0\.0\.1|localhost)(:\d+)?$/.test(host) && !privateRequest) {
       res.writeHead(403, headers);
-      res.end("Local access only");
+      res.end("Host not permitted");
       return;
     }
-    if (!isSameOriginRequest(req)) {
+    if (
+      !isSameOriginRequest(
+        req,
+        privateRequest ? privateOrigin : `http://${host}`,
+      )
+    ) {
       res.writeHead(403, headers);
       res.end("Same-origin access only");
       return;
@@ -337,6 +356,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   )
     throw new Error("Integration lab requires isolated demo mode");
   createServer({
+    privateOrigin: process.env.GATEWAY_PRIVATE_ORIGIN ?? null,
     homeAdapter: process.env.GATEWAY_HOME_URL
       ? createHomeAdapter({
           baseURL: process.env.GATEWAY_HOME_URL,
