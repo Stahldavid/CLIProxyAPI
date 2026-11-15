@@ -530,3 +530,22 @@ input {
 .architecture > b {
   color: #77ddd5;
 }
+
+@media (max-width: 720px) {
+  .architecture {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+  .architecture > span {
+    flex: none;
+    min-width: 0;
+    width: 100%;
+  }
+  .architecture > b {
+    align-self: center;
+    transform: rotate(90deg);
+    line-height: 1;
+  }
+}

@@ -123,3 +123,10 @@ clears that warning. Additional native links cover access keys, quotas, plugins,
 logs and diagnostics, checked against HMC route files. Regression assertions cover
 failed refresh/recovery, clearing telemetry and importing a snapshot while keeping
 Home/native navigation. All 89 named tests and formatting checks pass.
+
+### Narrow-screen architecture layout
+
+Below 720px, architecture nodes now stack vertically at full width and connectors
+point downward. The desktop layout is unchanged. CSSOM regression verifies the
+mobile media rule and connector transform. All 90 named tests, formatting and
+diff checks pass. Actual 390x844 visual QA is performed separately by the caller.
