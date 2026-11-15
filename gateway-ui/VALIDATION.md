@@ -139,3 +139,14 @@ and verify accepted origin, no-password challenge, denial of other ports/hosts,
 HTTP origin, cross-site/same-site, null Origin and spoofed forwarded headers.
 Local-origin behavior remains covered. All 93 named tests and formatting checks
 pass. No TLS route, network, firewall, ACL or installed service was changed here.
+
+### Explicitly approved entry navigation
+
+The approved private Host permits a user-activated top-level GET navigation to
+exactly `/` or `/index.html` from another site, only with Fetch Metadata navigate,
+document, `?1` and no Origin header. Basic authentication is still mandatory.
+API routes, other documents/assets, query paths, POST/HEAD, iframe/cors, missing
+user activation and foreign/null Origin remain blocked cross-site. HTTP tests
+verify 401 without credentials, 200 for the permitted document and zero adapter
+calls until a subsequent same-origin API request. All 94 tests pass; formatting
+and diff checks pass. No deployment or network change is performed by this commit.

@@ -205,3 +205,91 @@ test("private host remains denied when private origin is not explicitly configur
     await new Promise((resolve) => server.close(resolve));
   }
 });
+
+test("approved private origin permits only user-initiated GET entry document from another site", async () => {
+  let calls = 0;
+  const server = createServer({
+    privateOrigin: "https://workspace-01.tail61573a.ts.net:10006",
+    consolePassword: password,
+    adapter: {
+      snapshot: async () => {
+        calls++;
+        return { status: "connected" };
+      },
+    },
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const navigation = {
+    Host: "workspace-01.tail61573a.ts.net:10006",
+    "Sec-Fetch-Site": "cross-site",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-User": "?1",
+  };
+  try {
+    assert.equal(
+      (await wireRequest(base + "/", { headers: navigation })).status,
+      401,
+    );
+    assert.equal(
+      (
+        await wireRequest(base + "/", {
+          headers: { ...navigation, authorization },
+        })
+      ).status,
+      200,
+    );
+    assert.equal(
+      (
+        await wireRequest(base + "/index.html", {
+          headers: { ...navigation, authorization },
+        })
+      ).status,
+      200,
+    );
+    assert.equal(calls, 0);
+    for (const [path, method, extra] of [
+      ["/api/snapshot", "GET", {}],
+      ["/api/status", "POST", {}],
+      ["/", "POST", {}],
+      ["/", "HEAD", {}],
+      ["/?query=1", "GET", {}],
+      ["/lab.html", "GET", {}],
+      ["/style.css", "GET", {}],
+      ["/", "GET", { "Sec-Fetch-Dest": "iframe" }],
+      ["/", "GET", { "Sec-Fetch-Mode": "cors" }],
+      ["/", "GET", { "Sec-Fetch-User": "?0" }],
+      ["/", "GET", { Origin: "https://chatgpt.com" }],
+      ["/", "GET", { Origin: "null" }],
+      ["/", "GET", { Host: "evil.example" }],
+    ])
+      assert.equal(
+        (
+          await wireRequest(base + path, {
+            method,
+            headers: { ...navigation, authorization, ...extra },
+          })
+        ).status,
+        403,
+        JSON.stringify([path, method, extra]),
+      );
+    assert.equal(calls, 0);
+    assert.equal(
+      (
+        await wireRequest(base + "/api/snapshot", {
+          headers: {
+            Host: navigation.Host,
+            authorization,
+            Origin: "https://workspace-01.tail61573a.ts.net:10006",
+            "Sec-Fetch-Site": "same-origin",
+          },
+        })
+      ).status,
+      200,
+    );
+    assert.equal(calls, 1);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});

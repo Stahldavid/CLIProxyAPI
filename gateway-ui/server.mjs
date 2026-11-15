@@ -88,6 +88,7 @@ export function createServer({
       !isSameOriginRequest(
         req,
         privateRequest ? privateOrigin : `http://${host}`,
+        { allowInitialNavigation: privateRequest },
       )
     ) {
       res.writeHead(403, headers);

@@ -47,9 +47,20 @@ export function createConsoleAuth({
 export function isSameOriginRequest(
   req,
   expectedOrigin = `http://${req.headers.host}`,
+  { allowInitialNavigation = false } = {},
 ) {
   const site = req.headers["sec-fetch-site"];
-  if (site && site !== "same-origin" && site !== "none") return false;
+  const initialNavigation =
+    allowInitialNavigation &&
+    (site === "cross-site" || site === "same-site") &&
+    req.method === "GET" &&
+    (req.url === "/" || req.url === "/index.html") &&
+    req.headers["sec-fetch-mode"] === "navigate" &&
+    req.headers["sec-fetch-dest"] === "document" &&
+    req.headers["sec-fetch-user"] === "?1" &&
+    req.headers.origin === undefined;
+  if (site && site !== "same-origin" && site !== "none" && !initialNavigation)
+    return false;
   const origin = req.headers.origin;
   if (origin && origin !== expectedOrigin) return false;
   return true;
