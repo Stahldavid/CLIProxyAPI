@@ -34,9 +34,15 @@ test("Home reads only nodes and projects no identities, secrets or arbitrary str
     { label: "CPA 1", healthy: true, clients: 2 },
     { label: "CPA 2", healthy: null, clients: null },
   ]);
-  assert.equal(calls[0][0], "http://127.0.0.1:29327/v8/management/nodes");
-  assert.equal(calls[0][1].method, "GET");
-  assert.equal(calls[0][1].redirect, "error");
+  assert.equal(
+    calls.find(([url]) => url.endsWith("/nodes"))[0],
+    "http://127.0.0.1:29327/v8/management/nodes",
+  );
+  assert.equal(calls.find(([url]) => url.endsWith("/nodes"))[1].method, "GET");
+  assert.equal(
+    calls.find(([url]) => url.endsWith("/nodes"))[1].redirect,
+    "error",
+  );
   assert.doesNotMatch(JSON.stringify(result), /secret|private|script/);
 });
 test("Home invalid, unavailable, unauthorized and oversize responses fail closed", async () => {
@@ -122,5 +128,99 @@ test("Home snapshot HTTP endpoint requires auth and preserves native links witho
     );
   } finally {
     await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test("Home usage reads bounded 24h aggregate independently of nodes and discards unrelated data", async () => {
+  const calls = [];
+  const result = await createHomeAdapter({
+    baseURL: "http://localhost:29327",
+    token: "server-only",
+    fetchImpl: async (url, options) => {
+      calls.push({ url, options });
+      const parsed = new URL(url);
+      if (parsed.pathname.endsWith("/nodes"))
+        return new Response("offline", { status: 503 });
+      assert.equal(parsed.pathname, "/v8/management/usage/overview");
+      assert.equal(parsed.searchParams.get("timezone"), "Asia/Jerusalem");
+      assert.equal(parsed.searchParams.get("interval"), "hour");
+      const from = parsed.searchParams.get("from"),
+        to = parsed.searchParams.get("to");
+      assert.equal(Date.parse(to) - Date.parse(from), 86400000);
+      return new Response(
+        JSON.stringify({
+          range: { from, to },
+          totals: {
+            request_count: 51,
+            success_count: 50,
+            failed_count: 1,
+            total_tokens: 437689,
+            p95_latency_ms: 1200.5,
+            total_amount: 42,
+          },
+          trend: [{ bucket_start: from, request_count: 3, total_tokens: 1000 }],
+          top: {
+            credentials: [{ id: "private-account", token: "PRIVATE_SENTINEL" }],
+          },
+          payload: "PRIVATE_SENTINEL",
+        }),
+      );
+    },
+  }).snapshot();
+  assert.equal(result.status, "unavailable");
+  assert.equal(result.usage.status, "loaded");
+  assert.equal(result.usage.requests, 51);
+  assert.equal(result.usage.tokens, 437689);
+  assert.equal(result.usage.trend.length, 1);
+  assert.equal(calls.length, 2);
+  assert.ok(
+    calls.every(
+      (c) => c.options.method === "GET" && c.options.redirect === "error",
+    ),
+  );
+  assert.ok(
+    calls.every(
+      (c) => !c.url.includes("queue") && !c.url.includes("/credentials"),
+    ),
+  );
+  assert.doesNotMatch(
+    JSON.stringify(result),
+    /PRIVATE_SENTINEL|private-account|total_amount|server-only/,
+  );
+});
+
+test("Home rejects wrong-range, invalid and unavailable usage without inventing zero", async () => {
+  for (const variant of ["wrong-range", "bad-total", "offline", "missing"]) {
+    const result = await createHomeAdapter({
+      baseURL: "http://localhost:29327",
+      token: "server-only",
+      fetchImpl: async (url) => {
+        const parsed = new URL(url);
+        if (parsed.pathname.endsWith("/nodes"))
+          return new Response(JSON.stringify({ nodes: [] }));
+        if (variant === "offline")
+          return new Response("internal secret", { status: 503 });
+        const from =
+          variant === "wrong-range"
+            ? "2020-01-01T00:00:00Z"
+            : parsed.searchParams.get("from");
+        return new Response(
+          JSON.stringify({
+            range: { from, to: parsed.searchParams.get("to") },
+            totals:
+              variant === "missing"
+                ? null
+                : {
+                    request_count: variant === "bad-total" ? -1 : 0,
+                    success_count: 0,
+                  },
+          }),
+        );
+      },
+    }).snapshot();
+    assert.equal(result.status, "connected");
+    assert.equal(result.usage.status, "unavailable");
+    assert.equal(result.usage.requests, undefined);
+    assert.doesNotMatch(JSON.stringify(result), /internal secret/);
   }
 });

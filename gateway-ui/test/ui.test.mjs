@@ -258,5 +258,54 @@ test("9 screens, navigation, safe imports, filters, simulation, clear and reset"
   $("#operation-notice").textContent = "Operação verificada";
   navigate("settings");
   assert.equal($("#operation-notice").textContent, "Operação verificada");
+  globalThis.fetch = async () => ({
+    ok: true,
+    json: async () => ({
+      mode: "connected",
+      records: [],
+      management: { status: "not-configured" },
+      home: {
+        status: "connected",
+        nodes: [],
+        usage: {
+          status: "loaded",
+          requests: 51,
+          successes: 50,
+          tokens: 437689,
+          p95LatencyMs: 1200,
+          from: "2026-11-14T12:00:00Z",
+          to: "2026-11-15T12:00:00Z",
+          checkedAt: "2026-11-15T12:00:00Z",
+          trend: [
+            { timestamp: "2026-11-15T11:00:00Z", requests: 5, tokens: 1000 },
+          ],
+        },
+      },
+      panels: {},
+    }),
+  });
+  await $("#refresh").onclick();
+  navigate("overview");
+  assert.match($("#content").textContent, /Uso real registrado pelo Home/);
+  assert.match($("#content").textContent, /437.689/);
+  assert.match($("#content").textContent, /nem comprova histórico completo/);
+  assert.match($("#content").textContent, /Jerusalém/);
+  globalThis.fetch = async () => ({
+    ok: true,
+    json: async () => ({
+      mode: "connected",
+      records: [],
+      management: { status: "not-configured" },
+      home: {
+        status: "connected",
+        nodes: [],
+        usage: { status: "unavailable" },
+      },
+      panels: {},
+    }),
+  });
+  await $("#refresh").onclick();
+  assert.match($("#content").textContent, /não significa consumo zero/);
+  assert.equal(document.querySelectorAll("#content .card").length, 0);
   dom.window.close();
 });

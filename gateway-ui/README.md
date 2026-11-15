@@ -158,3 +158,20 @@ requests remain rejected. Forwarded headers are not trusted to widen access.
 Local HTTP origins remain supported for local administration. Do not expose via
 public Funnel or any other hostname/port. This narrow exception supersedes the
 blanket remote-access prohibition above only for that explicitly approved origin.
+
+## Non-destructive Home usage overview
+
+Home adapter also queries `GET /v8/management/usage/overview` with an explicit
+rolling 24-hour range, Asia/Jerusalem timezone and hourly buckets. The inspected
+Home handler reads its usage database; this is **not** the destructive usage
+queue. Node and usage results fail independently. The browser receives only
+numeric request/success/failure/token/p95 totals and hourly timestamps/counts.
+Credential/user groups, payloads, costs and all other fields are discarded.
+A mismatched response range fails closed rather than showing an incorrect period.
+
+When no event snapshot is loaded, Overview displays these Home aggregates with
+explicit coverage and last-query time. No individual events are fabricated from
+aggregates. An unavailable source displays unavailable, not zero. This does not
+include traffic the Home never recorded (such as the legacy proxy), prove full
+history, account balance or actual billing. Manual refresh re-queries the source;
+no background collector, queue consumer or automatic polling is introduced.

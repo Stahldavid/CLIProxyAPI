@@ -137,6 +137,48 @@ function render() {
         "",
       )}</div><div class="grid">${panel("Distribuição por provedor", bars(s.providers), "Contagem de requisições, não disponibilidade do serviço.")}${panel("Aplicativos de origem", bars(s.clients), "Claude Code pode usar Codex. Os dois eixos são independentes.")}</div>${panel("Atribuição sem ambiguidades", `<div class="flow"><div class="node"><small>Aplicativo</small><b>Claude Code</b>Harness / cliente</div><span class="arrow">→</span><div class="node"><small>Gateway</small><b>Alias → modelo</b>Roteamento</div><span class="arrow">→</span><div class="node"><small>Executor</small><b>Codex</b>Conta de destino</div></div><p>Exemplo conceitual. OAuth não comprova plano, saldo nem cobrança. Custo monetário: não informado.</p>`)}`;
   }
+  if (
+    page[0] === "overview" &&
+    mode !== "Demonstração" &&
+    mode !== "Snapshot importado" &&
+    records.length === 0
+  ) {
+    const usage = infrastructure.home?.usage;
+    const timeLabel = (value) =>
+      typeof value === "string" && Number.isFinite(Date.parse(value))
+        ? new Intl.DateTimeFormat("pt-BR", {
+            dateStyle: "short",
+            timeStyle: "short",
+            timeZone: "Asia/Jerusalem",
+          }).format(new Date(value))
+        : "Não informado";
+    if (usage?.status === "loaded") {
+      const fields = [
+        ["Requisições registradas", num(usage.requests)],
+        [
+          "Sucesso",
+          usage.requests > 0
+            ? num((100 * usage.successes) / usage.requests) + "%"
+            : "Sem requisições",
+        ],
+        ["Tokens registrados", num(usage.tokens)],
+        [
+          "Latência p95",
+          usage.p95LatencyMs === null
+            ? "Não informada"
+            : num(usage.p95LatencyMs) + " ms",
+        ],
+      ];
+      const trend = usage.trend ?? [];
+      const maximum = Math.max(1, ...trend.map((row) => row.requests ?? 0));
+      html = `${panel("Uso real registrado pelo Home · últimas 24 horas", `<p>${esc(timeLabel(usage.from))} até ${esc(timeLabel(usage.to))} · Jerusalém</p><p>Consulta: ${esc(timeLabel(usage.checkedAt))}${infrastructure.stale ? " · DESATUALIZADA: a atualização falhou" : ""}</p><button id="refresh">Atualizar dados reais</button><p>Fonte: consulta agregada não destrutiva ao Home. Não inclui tráfego que não foi registrado por ele, nem comprova histórico completo, saldo ou cobrança.</p>`)}<div class="cards">${fields.map(([title, value]) => `<div class="card"><span class="label">${esc(title)}</span><div class="value">${esc(value)}</div><small>Somente intervalo consultado</small></div>`).join("")}</div>${panel("Requisições por hora", trend.length ? `<div class="bars">${trend.map((row) => `<div class="bar-row"><div class="bar-label"><span>${esc(timeLabel(row.timestamp))}</span><b>${esc(num(row.requests))}</b></div><div class="track"><div class="fill" style="width:${row.requests === null ? 0 : Math.max(0, Math.min(100, (100 * row.requests) / maximum))}%"></div></div></div>`).join("")}</div>` : "<p>Sem série horária disponível.</p>")}${panel("Registros individuais e atribuição", '<p>Estes totais são agregados reais; não foram convertidos em eventos fictícios. Atividade, cliente/harness e detalhamento por requisição precisam de fonte própria de registros. A fila de uso não foi consumida.</p><p><a href="#infrastructure">Abrir Home e nós para acessar o HMC completo</a></p>')}`;
+    } else {
+      html = panel(
+        "Telemetria de uso ainda indisponível",
+        `<p>${usage?.status === "unavailable" ? "O Home não retornou agregados válidos nesta consulta. Isso não significa consumo zero." : "A conexão aos nós não fornece histórico de uso. Nenhum snapshot de eventos ou agregado Home está disponível."}</p><button id="refresh">Atualizar fontes</button><p>Contas saudáveis e modelos disponíveis não medem uso. Nenhuma fila destrutiva é consultada automaticamente.</p><p><a href="#infrastructure">Ver fontes e abrir o HMC nativo</a></p>`,
+      );
+    }
+  }
   if (page[0] === "accounts" && connection?.management?.accounts?.length)
     html = panel(
       "Inventário administrativo",

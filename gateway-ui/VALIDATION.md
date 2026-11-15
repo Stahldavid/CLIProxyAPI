@@ -150,3 +150,15 @@ user activation and foreign/null Origin remain blocked cross-site. HTTP tests
 verify 401 without credentials, 200 for the permitted document and zero adapter
 calls until a subsequent same-origin API request. All 94 tests pass; formatting
 and diff checks pass. No deployment or network change is performed by this commit.
+
+### Non-destructive Home usage data
+
+Inspected Home `GetUsageOverview`, `usageOverviewResponse`, totals/trend response
+and v8 route mapping, plus HMC `fetchUsageOverview`. Added fixed 24h read-only
+aggregation, bounded response, exact range check and strict safe projection.
+Fake tests cover independent node failure, correct interval, invalid/missing
+usage, incorrect range, no queue/credential API calls and secret-field stripping.
+UI tests cover real-aggregate labels, timezone, totals and unavailable-not-zero.
+All 96 named tests pass. Live verification was attempted by the diagnostic worker
+but blocked by approval review before command execution; no bypass or live-data
+qualification is claimed. Installed services and credentials remain untouched.
